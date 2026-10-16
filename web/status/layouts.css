@@ -1,0 +1,45 @@
+/* Where tiles go. main.js sets data-layout on #screen:
+   idle | one | two | grid4 | grid6. Wide screens (16:9) and squarer ones
+   (4:3, like the 320x240 CYD) differ only where noted. */
+
+#screen {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: var(--gap);
+  gap: var(--gap);
+  display: grid;
+}
+
+#screen[data-layout="idle"] { place-content: center; text-align: center; gap: 0; }
+#screen[data-layout="one"] { grid-template: 1fr / 1fr; }
+#screen[data-layout="two"] { grid-template: 1fr 1fr / 1fr; }
+#screen[data-layout="grid4"] { grid-template: 1fr 1fr / 1fr 1fr; }
+#screen[data-layout="grid6"] { grid-template: 1fr 1fr / 1fr 1fr 1fr; }
+
+/* Row tiles: ring left, text right. */
+#screen[data-layout="one"] .tile-body {
+  --dir: row;
+  --name-size: clamp(16px, 9cqmin, 64px);
+  --d: min(100cqh, 62cqw);
+  gap: 5cqw;
+}
+#screen[data-layout="one"] .info { align-items: flex-start; text-align: left; flex: 1; }
+#screen[data-layout="one"] .detail { display: block; }
+
+@media (min-aspect-ratio: 3/2) {
+  #screen[data-layout="two"] { grid-template: 1fr / 1fr 1fr; }
+}
+@media (max-aspect-ratio: 3/2) {
+  #screen[data-layout="two"] .tile-body { --dir: row; --name-size: clamp(16px, 18cqh, 48px); --d: min(100cqh, 45cqw); gap: 6cqw; }
+  #screen[data-layout="two"] .info { align-items: flex-start; text-align: left; flex: 1; }
+}
+
+#offline {
+  position: fixed;
+  inset: auto 0 0 0;
+  padding: 0.3em;
+  background: var(--offline);
+  font-size: max(12px, 3vmin);
+  text-align: center;
+}

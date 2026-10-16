@@ -1,0 +1,41 @@
+/* Design language: every color, font and size decision lives here.
+   Other dashboards (and Homarr later) can copy this file to look the same.
+   Small screens like the CYD wash out greys and thin text, so: pure black,
+   white bold text, saturated colors, thick rings. */
+
+@font-face { font-family: "Roboto"; font-weight: 500; src: url("fonts/roboto-500.woff2") format("woff2"); }
+@font-face { font-family: "Roboto"; font-weight: 700; src: url("fonts/roboto-700.woff2") format("woff2"); }
+
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --fg-dim: #c8c8c8;     /* secondary text: still bright, the panel eats greys */
+  --track: #3a3a3a;      /* unfilled part of a ring */
+  --failed: #ff2020;
+  --offline: #b00000;
+
+  /* Item colors follow screen position, not the device. */
+  --slot-1: #ff8000;
+  --slot-2: #ffe000;
+  --slot-3: #00e676;
+  --slot-4: #00d8ff;
+  --slot-5: #ff4fc3;
+  --slot-6: #b06cff;
+
+  --font: "Roboto", system-ui, sans-serif;
+  --weight-text: 700;
+  --weight-clock: 500;
+
+  --ring-stroke: 10;     /* in ring units: the ring is drawn 100 wide */
+  --gap: 2.5vmin;        /* space between tiles and around the screen */
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-weight: var(--weight-text);
+  overflow: hidden;
+}

@@ -1,0 +1,10 @@
+/* Nothing running: a clock and the date. */
+
+.clock {
+  font-weight: var(--weight-clock);
+  font-size: 40vh;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.clock small { font-size: 0.25em; margin-left: 0.15em; }
+.date { font-size: max(16px, 8vh); margin-top: 0.4em; }

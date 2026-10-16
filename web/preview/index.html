@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Preview: home status</title>
+<style>
+  body { margin: 0; padding: 12px; background: #222; color: #ccc; font: 14px system-ui; }
+  .row { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+  .row b { width: 50px; flex: none; }
+  .frame { overflow: hidden; outline: 1px solid #555; flex: none; }
+  iframe { border: 0; transform-origin: 0 0; display: block; }
+</style>
+</head>
+<body>
+<!-- Every demo scenario at every screen size, each in an exact-size frame
+     (big screens scaled down to fit). ?demos=1,4,done picks scenarios. -->
+<div id="sheet"></div>
+<script type="module">
+  const SIZES = [
+    { w: 320, h: 240, scale: 1 },      // CYD
+    { w: 1280, h: 720, scale: 0.4 },   // any 16:9 browser
+  ];
+  const params = new URLSearchParams(location.search);
+  const demos = params.get("demos")?.split(",") ?? (await (await fetch("/api/demos")).json());
+  document.getElementById("sheet").innerHTML = demos.map((demo) => `
+    <div class="row"><b>${demo}</b>${SIZES.map(({ w, h, scale }) => `
+      <div class="frame" style="width:${w * scale}px;height:${h * scale}px">
+        <iframe src="/status/?static=1&demo=${demo}" width="${w}" height="${h}" style="transform:scale(${scale})"></iframe>
+      </div>`).join("")}
+    </div>`).join("");
+</script>
+</body>
+</html>
