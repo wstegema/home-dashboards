@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+previews/
+# Old prototype and ESPHome config: kept on disk, not part of this build.
+dashboards/
+cyd-home-status.yaml
