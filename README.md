@@ -1,0 +1,46 @@
+# home-dashboards
+
+Glance at a screen and see what's running in the house: printers, washer, dryer. Requirements: [REQUIREMENTS.md](REQUIREMENTS.md).
+
+One container keeps one connection to Home Assistant and serves:
+
+| URL | What |
+|---|---|
+| `/status/` | The dashboard. `?demo=0`…`6`, `8`, `done`, `failed` shows fake data. |
+| `/preview/` | Every demo at 320×240 and 16:9, side by side |
+| `/api/status` | The data as JSON. The page and any future client (e.g. the CYD) read only this. |
+| `/api/status/stream` | Same data, pushed on change (server-sent events) |
+| `/healthz` | Whether HA is connected |
+
+## Run locally
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements-dev.txt
+copy .env.example .env            # paste a HA token into .env
+.venv\Scripts\python -m uvicorn server.web:app --port 8080 --reload
+```
+
+- Tests: `.venv\Scripts\python -m pytest`
+- Screenshot of the preview sheet: `.venv\Scripts\python tools\screenshot.py` → `previews/preview.png`
+
+## Where to change things
+
+| To change | Edit |
+|---|---|
+| Colors, fonts, ring thickness | `web/shared/tokens.css` |
+| Where tiles go per layout | `web/status/layouts.css` |
+| How one item looks | `web/status/ring.css`, `ring.js` |
+| Clock screen | `web/status/clock.css`, `clock.js` |
+| Which devices are watched | `server/sources.py` |
+| Running / done rules | `server/status.py` (with tests in `tests/`) |
+
+The UI is plain HTML, CSS and JS modules, so there's no build step: edit a file and reload the browser.
+
+## Deploy (Dockhand on Unraid)
+
+1. Push to `main` on GitHub. The Action runs the tests and publishes `ghcr.io/<owner>/home-dashboards:latest`.
+2. In Dockhand, create a stack from `compose.yaml` and set `HA_URL` and `HA_TOKEN` in its environment.
+3. Open `http://<unraid>:8095/status/`.
+
+If the GitHub package is private, Dockhand needs a ghcr.io registry login. If it's public, nothing else is needed.

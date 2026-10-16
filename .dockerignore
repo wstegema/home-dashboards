@@ -1,0 +1,8 @@
+.git
+.venv
+.env
+dashboards
+previews
+tests
+tools
+cyd-home-status.yaml
