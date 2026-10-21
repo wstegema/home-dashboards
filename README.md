@@ -43,4 +43,7 @@ The UI is plain HTML, CSS and JS modules, so there's no build step: edit a file 
 2. In Dockhand, create a stack from `compose.yaml` and set `HA_URL` and `HA_TOKEN` in its environment.
 3. Open `http://<unraid>:8095/status/`.
 
-If the GitHub package is private, Dockhand needs a ghcr.io registry login. If it's public, nothing else is needed.
+The image is public, so Dockhand needs no registry login. To update, pull and redeploy the stack in Dockhand.
+
+To edit the UI on the server without a new image, copy `web/` to the server and add a volume to the stack:
+`- /mnt/user/appdata/home-dashboards/web:/app/web:ro`

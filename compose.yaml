@@ -1,16 +1,10 @@
-# Dockhand stack. Set HA_URL and HA_TOKEN in the stack's environment variables.
-# Update: push to main, wait for the GitHub Action, then pull + redeploy in Dockhand.
 services:
   home-dashboards:
-    image: ghcr.io/wstegema/home-dashboards:latest  # change the owner if your GitHub name differs
+    image: ghcr.io/wstegema/home-dashboards:latest
     container_name: home-dashboards
     restart: unless-stopped
     ports:
       - "8095:8080"
     environment:
-      HA_URL: ${HA_URL}
-      HA_TOKEN: ${HA_TOKEN}
-    # Optional: edit the UI on the server without a new image.
-    # Copy web/ to this path, uncomment, redeploy; then edits show on browser reload.
-    # volumes:
-    #   - /mnt/user/appdata/home-dashboards/web:/app/web:ro
+      - HA_URL=${HA_URL}
+      - HA_TOKEN=${HA_TOKEN}
