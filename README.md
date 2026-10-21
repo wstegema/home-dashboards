@@ -7,6 +7,8 @@ One container keeps one connection to Home Assistant and serves:
 | URL | What |
 |---|---|
 | `/status/` | The dashboard. `?demo=0`…`6`, `8`, `done`, `failed` shows fake data. |
+| `/status/?view=detail` | Big screens: header clock, stage, percent, finish time, cover image |
+| `/status/?view=eink` | Transparent LCD: black line art on white (white = clear glass), redraws once a minute |
 | `/preview/` | Every demo at 320×240 and 16:9, side by side |
 | `/api/status` | The data as JSON. The page and any future client (e.g. the CYD) read only this. |
 | `/api/status/stream` | Same data, pushed on change (server-sent events) |
@@ -32,6 +34,7 @@ copy .env.example .env            # paste a HA token into .env
 | Where tiles go per layout | `web/status/layouts.css` |
 | How one item looks | `web/status/ring.css`, `ring.js` |
 | Clock screen | `web/status/clock.css`, `clock.js` |
+| Detail view / e-ink view | `web/status/detail.css` / `eink.css` |
 | Which devices are watched | `server/sources.py` |
 | Running / done rules | `server/status.py` (with tests in `tests/`) |
 

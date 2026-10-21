@@ -3,8 +3,8 @@
    Small screens like the CYD wash out greys and thin text, so: pure black,
    white bold text, saturated colors, thick rings. */
 
-@font-face { font-family: "Roboto"; font-weight: 500; src: url("fonts/roboto-500.woff2") format("woff2"); }
-@font-face { font-family: "Roboto"; font-weight: 700; src: url("fonts/roboto-700.woff2") format("woff2"); }
+@font-face { font-family: "Roboto"; font-weight: 500; src: url("fonts/roboto-500.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Roboto"; font-weight: 700; src: url("fonts/roboto-700.woff2") format("woff2"); font-display: swap; }
 
 :root {
   --bg: #000;

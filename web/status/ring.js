@@ -8,7 +8,7 @@ export function tileHtml(item, slot, { withCover = false, detail = false, tz = n
   const color = item.status === "failed" ? "var(--failed)" : `var(--slot-${(slot % SLOTS) + 1})`;
   const pct = item.pct ?? 0;
   const cover = (withCover || detail) && item.image ? `<img class="cover" src="${escapeHtml(item.image)}" alt="">` : "";
-  return `<section class="tile" style="--c:${color}"><div class="tile-body">
+  return `<section class="tile" data-status="${item.status}" style="--c:${color}"><div class="tile-body">
     <div class="ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle class="track" cx="50" cy="50" r="45"/>

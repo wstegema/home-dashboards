@@ -1,0 +1,28 @@
+/* E-ink view (?view=eink), for the transparent LCD. That panel has no
+   backlight: white shows as clear glass, black as darkened pixels, and greys
+   are just a faint tint. So: one ink (black) on white, line-art rings, no
+   color coding, nothing that animates. main.js redraws once a minute. */
+
+body[data-view="eink"] {
+  --bg: #fff;
+  --fg: #000;
+  --fg-dim: #000;
+  --track: #000;
+  --failed: #000;
+  --offline: #000;
+  --slot-1: #000; --slot-2: #000; --slot-3: #000;
+  --slot-4: #000; --slot-5: #000; --slot-6: #000;
+}
+
+/* Track: a thin dotted guide line. Progress: a thick solid arc on top. */
+body[data-view="eink"] .ring .track { stroke-width: 1.5; stroke-dasharray: 1.5 3; }
+body[data-view="eink"] .ring .bar { stroke-width: calc(var(--ring-stroke) * 1.1); stroke-linecap: butt; }
+
+/* Done: solid ring. Failed: the whole ring inverts so it can't be missed. */
+body[data-view="eink"] .tile[data-status="failed"] .ring svg { background: #000; border-radius: 50%; }
+body[data-view="eink"] .tile[data-status="failed"] .time { color: #fff; }
+
+/* Names in plain weight, time stays bold: the time is still what matters. */
+body[data-view="eink"] .name { font-weight: var(--weight-clock); }
+
+body[data-view="eink"] #offline { color: #fff; }

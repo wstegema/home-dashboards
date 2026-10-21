@@ -1,6 +1,7 @@
 // Home status page: gets items from /api/status, draws them, counts down locally.
 // ?demo=<scenario> shows fake data. ?static=1 fetches once (for screenshots).
 // ?view=detail adds a header clock and more facts per item, for big screens.
+// ?view=eink is black-on-white line art that redraws once a minute (transparent LCD).
 import { clockHtml, updateClock } from "./clock.js";
 import { ROTATE_MS, itemsOnPage, pageCount, pickLayout } from "./layout.js";
 import { tileHtml, updateTimes } from "./ring.js";
@@ -10,8 +11,12 @@ const header = document.getElementById("header");
 const offline = document.getElementById("offline");
 const params = new URLSearchParams(location.search);
 const query = params.has("demo") ? `?demo=${encodeURIComponent(params.get("demo"))}` : "";
-const detail = params.get("view") === "detail";
-document.body.dataset.view = detail ? "detail" : "simple";
+const view = ["detail", "eink"].includes(params.get("view")) ? params.get("view") : "simple";
+const detail = view === "detail";
+document.body.dataset.view = view;
+// E-ink style: update on the minute and page slowly, so nothing flickers.
+const TICK_MS = view === "eink" ? 60000 : 1000;
+const PAGE_MS = view === "eink" ? 4 * ROTATE_MS : ROTATE_MS;
 
 let data = null;
 let clockOffset = 0; // server time minus this device's time, in seconds
@@ -52,11 +57,15 @@ if (params.has("static")) {
   fetch(`/api/status${query}`).then((r) => r.json()).then(receive);
 } else {
   new EventSource(`/api/status/stream${query}`).onmessage = (e) => receive(JSON.parse(e.data));
-  setInterval(() => data && tick(), 1000);
+  // First tick lands on the next whole minute (or second), then every TICK_MS.
+  setTimeout(() => {
+    if (data) tick();
+    setInterval(() => data && tick(), TICK_MS);
+  }, TICK_MS - (Date.now() % TICK_MS));
   setInterval(() => {
     if (data && pageCount(data.items) > 1) {
       page++;
       render();
     }
-  }, ROTATE_MS);
+  }, PAGE_MS);
 }
