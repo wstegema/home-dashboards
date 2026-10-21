@@ -90,7 +90,16 @@ class HomeAssistant:
         path = state and state.get("attributes", {}).get("entity_picture")
         if not path:
             raise LookupError(f"{entity_id} has no picture")
+        return await self._get(path)
+
+    async def fetch_camera(self, entity_id: str) -> tuple[bytes, str]:
+        """A current snapshot from a camera.* entity."""
+        if entity_id not in self.states:
+            raise LookupError(f"{entity_id} not found")
+        return await self._get(f"/api/camera_proxy/{entity_id}")
+
+    async def _get(self, path: str) -> tuple[bytes, str]:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(self.url + path, headers={"Authorization": f"Bearer {self.token}"})
             r.raise_for_status()
-            return r.content, r.headers.get("content-type", "image/png")
+            return r.content, r.headers.get("content-type", "image/jpeg")

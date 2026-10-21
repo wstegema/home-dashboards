@@ -154,3 +154,21 @@ def test_demo_item_counts(name):
 def test_demo_done_and_failed_come_first():
     assert demo_items("done", {}, NOW)[0]["status"] == "done"
     assert demo_items("failed", {}, NOW)[0]["status"] == "failed"
+
+
+# ---- cameras ----------------------------------------------------------------
+
+def test_printer_camera_only_while_available():
+    s = states(**{PRINTER.state: "running", PRINTER.camera: "idle"})
+    assert run(s)[0]["camera"] == f"/api/camera/{PRINTER.camera}"
+    s = states(**{PRINTER.state: "running", PRINTER.camera: "unavailable"})
+    assert run(s)[0]["camera"] is None
+
+
+def test_side_cameras_skip_missing_ones():
+    from server.sources import Camera
+    from server.status import cameras
+    cams = [Camera("camera.front", "Front"), Camera("camera.gone", "Gone")]
+    assert cameras(cams, states(**{"camera.front": "streaming"})) == [
+        {"id": "camera.front", "name": "Front", "url": "/api/camera/camera.front"}
+    ]

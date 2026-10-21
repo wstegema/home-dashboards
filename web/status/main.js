@@ -2,12 +2,14 @@
 // ?demo=<scenario> shows fake data. ?static=1 fetches once (for screenshots).
 // ?view=detail adds a header clock and more facts per item, for big screens.
 // ?view=eink is black-on-white line art that redraws once a minute (transparent LCD).
+import { CAMERA_REFRESH_MS, camerasHtml, refreshLive } from "./cameras.js";
 import { clockHtml, updateClock } from "./clock.js";
 import { ROTATE_MS, itemsOnPage, pageCount, pickLayout } from "./layout.js";
 import { tileHtml, updateTimes } from "./ring.js";
 
 const screen = document.getElementById("screen");
 const header = document.getElementById("header");
+const sideCameras = document.getElementById("cameras");
 const offline = document.getElementById("offline");
 const params = new URLSearchParams(location.search);
 const query = params.has("demo") ? `?demo=${encodeURIComponent(params.get("demo"))}` : "";
@@ -31,12 +33,19 @@ function render() {
   screen.dataset.layout = layout;
   screen.innerHTML = layout === "idle"
     ? clockHtml()
-    : items.map((item, slot) => tileHtml(item, slot, { withCover: layout === "one", detail, tz: data.tz })).join("");
+    : items.map((item, slot) => tileHtml(item, slot, {
+        withCover: layout === "one", detail, withCamera: layout === "one" || layout === "two", tz: data.tz,
+      })).join("");
   // Detail view keeps a small clock on top while things run.
   header.hidden = !detail || layout === "idle";
   header.innerHTML = header.hidden ? "" : `${clockHtml()}<div class="page"></div>`;
   const pages = pageCount(data.items);
   if (!header.hidden && pages > 1) header.querySelector(".page").textContent = `${page % pages + 1} / ${pages}`;
+  // Detail view: other cameras in a side column, whenever there are any.
+  const cams = detail ? data.cameras || [] : [];
+  sideCameras.hidden = cams.length === 0;
+  const camsHtml = camerasHtml(cams);
+  if (sideCameras.innerHTML !== camsHtml) sideCameras.innerHTML = camsHtml; // don't restart the pictures
   offline.hidden = data.connected || data.demo != null;
   tick();
 }
@@ -62,6 +71,7 @@ if (params.has("static")) {
     if (data) tick();
     setInterval(() => data && tick(), TICK_MS);
   }, TICK_MS - (Date.now() % TICK_MS));
+  if (detail) setInterval(() => refreshLive(), CAMERA_REFRESH_MS);
   setInterval(() => {
     if (data && pageCount(data.items) > 1) {
       page++;

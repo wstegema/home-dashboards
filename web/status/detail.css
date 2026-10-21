@@ -1,12 +1,22 @@
-/* Detail view (?view=detail), for big screens: a clock bar on top, every
-   tile laid out ring-left / facts-right, with stage, percent, finish time
-   and the printer's cover image. Only rules for this view live here. */
+/* Detail view (?view=detail), for big screens:
+   - a clock bar on top while things run
+   - every tile a card: ring | facts | live camera with the print thumbnail
+   - other cameras in a column on the right, whenever any are configured
+   Only rules for this view live here. */
 
 body[data-view="detail"] {
   --header-h: 9vh;
+  --side-w: 26vw;     /* camera column */
+  --card: #0d0d0d;
+  --radius: 1.2vmin;
+  display: grid;
+  grid-template: auto 1fr / 1fr auto;
+  height: 100vh;
 }
 
+/* ---- header ---------------------------------------------------------- */
 #header {
+  grid-column: 1 / -1;
   box-sizing: border-box;
   height: var(--header-h);
   padding: 0 var(--gap);
@@ -22,34 +32,124 @@ body[data-view="detail"] {
 #header .date { font-size: 1em; margin: 0; color: var(--fg-dim); }
 #header .page { margin-left: auto; color: var(--fg-dim); }
 
-body[data-view="detail"] #header:not([hidden]) + #screen { height: calc(100vh - var(--header-h)); }
+body[data-view="detail"] #screen { grid-area: 2 / 1; width: auto; height: auto; min-width: 0; min-height: 0; }
 
-/* Every tile becomes a card: ring left, facts right. */
+/* ---- side cameras ------------------------------------------------------ */
+#cameras[hidden] { display: none; }
+#cameras {
+  grid-area: 2 / 2;
+  width: var(--side-w);
+  box-sizing: border-box;
+  padding: var(--gap) var(--gap) var(--gap) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-height: 0;
+}
+.camera {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 0;
+  background: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.camera img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.camera figcaption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 0.6em 0.8em 0.4em;
+  font-size: max(14px, 2.2vh);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+}
+
+/* ---- item cards ---------------------------------------------------------- */
 body[data-view="detail"] #screen:not([data-layout="idle"]) .tile-body {
   --dir: row;
   --name-size: clamp(16px, 11cqh, 56px);
   --d: min(88cqh, 46cqw);
   justify-content: flex-start;
-  gap: 5cqw;
+  gap: 4cqw;
   padding: 0 3cqw;
 }
+/* A card with pictures gives the ring less width. */
+body[data-view="detail"] #screen:not([data-layout="idle"]) .tile-body:has(.media) { --d: min(80cqh, 30cqw); }
+body[data-view="detail"] #screen:not([data-layout="idle"]) .tile-body:has(.thumb-only) { --d: min(80cqh, 26cqw); gap: 3cqw; }
+
 body[data-view="detail"] .tile {
-  background: #0d0d0d;
-  border-radius: 2cqmin;
+  overflow: hidden;
+  background: var(--card);
+  border-radius: var(--radius);
   box-shadow: inset 4px 0 0 var(--c);  /* color stripe on the left edge */
 }
-body[data-view="detail"] .info { align-items: flex-start; text-align: left; flex: 1; gap: 0.35em; }
+body[data-view="detail"] .info { align-items: flex-start; text-align: left; flex: 1 0 auto; gap: 0.35em; white-space: nowrap; }
+/* With pictures, the text keeps its width and the camera takes what's left. */
+body[data-view="detail"] .tile-body:has(.media) .info { flex: 0 0 auto; }
 body[data-view="detail"] .detail { display: block; font-size: calc(var(--name-size) * 0.7); }
 
 .facts { display: flex; flex-direction: column; gap: 0.15em; font-size: calc(var(--name-size) * 0.7); color: var(--fg-dim); }
 .facts .fact-big { color: var(--c); font-size: 1.6em; }
 
-body[data-view="detail"] .cover { width: min(34cqh, 30cqw); margin-top: 0.2em; }
-
-/* Small tiles: keep ring, name and the time facts; drop the picture. */
-@container tile (max-height: 260px) {
-  body[data-view="detail"] .cover { display: none; }
+/* Live camera, with the print thumbnail in its corner. */
+.media {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 80cqh;
+  max-width: calc(80cqh * 16 / 9);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
 }
+.media .live { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media .thumb {
+  position: absolute;
+  right: 4%;
+  bottom: 5%;
+  width: 30%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #000;
+  border: 2px solid var(--c);
+  border-radius: var(--radius);
+}
+.media.thumb-only { flex: none; aspect-ratio: 1; height: min(50cqh, 20cqw); }
+.media.thumb-only .thumb { position: static; width: 100%; height: 100%; border: 0; }
 
-/* The two-item layout uses side-by-side cards even on squarer screens. */
+/* Small cards: keep ring, name and the time facts; drop the pictures. */
+@container tile (max-width: 560px) { .media { display: none; } }
+@container tile (max-height: 200px) { .media { display: none; } }
+
+/* The two-item layout uses side-by-side cards even on squarer screens... */
 body[data-view="detail"] #screen[data-layout="two"] { grid-template: 1fr / 1fr 1fr; }
+/* ...except when there are pictures to show: then stack them, so each card is wide. */
+body[data-view="detail"] #screen[data-layout="two"]:has(.media) { grid-template: 1fr 1fr / 1fr; }
+
+/* One item with a camera: ring over the facts on the left, camera fills the right. */
+body[data-view="detail"] #screen[data-layout="one"] .tile-body:has(.media .live) {
+  display: grid;
+  grid-template: "ring media" auto "info media" auto / auto 1fr;
+  align-content: center;
+  --d: min(55cqh, 30cqw);
+  gap: 3cqh 4cqw;
+}
+#screen[data-layout="one"] .tile-body:has(.media .live) .ring { grid-area: ring; }
+#screen[data-layout="one"] .tile-body:has(.media .live) .info { grid-area: info; }
+#screen[data-layout="one"] .tile-body:has(.media .live) .media { grid-area: media; height: 88cqh; max-width: none; align-self: center; }
+
+/* Six items: cards are narrow, so stack them: ring on top, facts underneath on one line. */
+body[data-view="detail"] #screen[data-layout="grid6"] .tile-body,
+body[data-view="detail"] #screen[data-layout="grid6"] .tile-body:has(.media) {
+  --dir: column;
+  --name-size: clamp(14px, 9cqmin, 40px);
+  --d: min(94cqw, 100cqh - 4.6 * var(--name-size));
+  justify-content: center;
+  gap: 2cqh;
+  padding: 2cqh 3cqw;
+}
+#screen[data-layout="grid6"] .info { align-items: center; text-align: center; flex: none; gap: 0.2em; }
+#screen[data-layout="grid6"] .detail { display: none; }
+#screen[data-layout="grid6"] .facts { flex-direction: row; align-items: baseline; gap: 0.6em; }
+#screen[data-layout="grid6"] .facts .fact-big { font-size: 1.2em; }
+#screen[data-layout="grid6"] .media { display: none; }

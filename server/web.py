@@ -15,10 +15,10 @@ from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from .demo import SCENARIOS, demo_items
+from .demo import SCENARIOS, demo_cameras, demo_items
 from .ha import HomeAssistant
-from .sources import SOURCES
-from .status import DoneTracker, build_items
+from .sources import CAMERAS, SOURCES
+from .status import DoneTracker, build_items, cameras
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("server")
@@ -57,10 +57,11 @@ def status(demo: str | None) -> dict:
     if demo is not None:
         if demo not in SCENARIOS:
             raise HTTPException(404, f"no demo '{demo}'; try one of {list(SCENARIOS)}")
-        items = demo_items(demo, ha.states, now)
+        items, cams = demo_items(demo, ha.states, now), demo_cameras()
     else:
         items = build_items(SOURCES, ha.states, now, tracker.update(SOURCES, ha.states, now))
-    return {"now": now, "tz": ha.time_zone, "connected": ha.connected, "demo": demo, "items": items}
+        cams = cameras(CAMERAS, ha.states)
+    return {"now": now, "tz": ha.time_zone, "connected": ha.connected, "demo": demo, "items": items, "cameras": cams}
 
 
 @app.get("/api/status")
@@ -109,6 +110,19 @@ async def api_image(entity_id: str):
     except Exception as e:
         raise HTTPException(502, f"fetch failed: {e}") from e
     return Response(content, media_type=content_type, headers={"Cache-Control": "max-age=300"})
+
+
+@app.get("/api/camera/{entity_id}")
+async def api_camera(entity_id: str):
+    if not entity_id.startswith("camera."):
+        raise HTTPException(400, "only camera.* entities")
+    try:
+        content, content_type = await ha.fetch_camera(entity_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e)) from e
+    except Exception as e:
+        raise HTTPException(502, f"fetch failed: {e}") from e
+    return Response(content, media_type=content_type, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/healthz")

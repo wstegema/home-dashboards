@@ -1,13 +1,14 @@
 // One item tile: ring + time + name (+ detail and cover image when there's room).
-// The detail view adds percent, finish time and "finished … ago" lines.
+// The detail view adds percent, finish time, "finished … ago", and a media
+// column with the live camera and the print thumbnail.
 import { ago, clockTime, escapeHtml, ringText } from "./format.js";
 
 const SLOTS = 6;
 
-export function tileHtml(item, slot, { withCover = false, detail = false, tz = null } = {}) {
+export function tileHtml(item, slot, { withCover = false, detail = false, withCamera = false, tz = null } = {}) {
   const color = item.status === "failed" ? "var(--failed)" : `var(--slot-${(slot % SLOTS) + 1})`;
   const pct = item.pct ?? 0;
-  const cover = (withCover || detail) && item.image ? `<img class="cover" src="${escapeHtml(item.image)}" alt="">` : "";
+  const cover = withCover && !detail && item.image ? `<img class="cover" src="${escapeHtml(item.image)}" alt="">` : "";
   return `<section class="tile" data-status="${item.status}" style="--c:${color}"><div class="tile-body">
     <div class="ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -22,7 +23,18 @@ export function tileHtml(item, slot, { withCover = false, detail = false, tz = n
       ${detail ? factsHtml(item, slot, tz) : ""}
       ${cover}
     </div>
+    ${detail ? mediaHtml(item, withCamera) : ""}
   </div></section>`;
+}
+
+// Detail view only: live camera, with the print thumbnail in its corner
+// (or the thumbnail alone: once it's done, or in grid cards that are too small).
+function mediaHtml(item, withCamera) {
+  const camera = withCamera ? item.camera : null;
+  if (!camera && !item.image) return "";
+  const thumb = item.image ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="">` : "";
+  const live = camera ? `<img class="live" data-live src="${escapeHtml(camera)}" alt="">` : "";
+  return `<div class="media${live ? "" : " thumb-only"}">${live}${thumb}</div>`;
 }
 
 // Detail view only: the facts under the name.

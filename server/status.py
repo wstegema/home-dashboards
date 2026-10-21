@@ -11,6 +11,7 @@ from .sources import MISSING, Source
 
 DONE_LINGER_SECONDS = 30 * 60
 IMAGE_URL = "/api/image/{entity}?v={version}"
+CAMERA_URL = "/api/camera/{entity}"
 
 
 class DoneTracker:
@@ -71,6 +72,7 @@ def _running_item(src: Source, states: dict, now: float) -> dict:
         "pct": None if pct is None else max(0, min(100, round(pct))),
         "detail": _pretty(stage if stage not in MISSING else _state(states, src.state)),
         "image": _image_url(src, states),
+        "camera": _camera_url(src.camera, states),
     }
 
 
@@ -86,7 +88,19 @@ def _done_item(src: Source, states: dict, state: str, done_at: float) -> dict:
         "pct": 100,
         "detail": "Failed" if failed else "Done",
         "image": _image_url(src, states),
+        "camera": None,
     }
+
+
+def cameras(cams: list, states: dict) -> list[dict]:
+    """The side-column cameras that HA currently has a picture for."""
+    return [{"id": c.entity, "name": c.name, "url": url} for c in cams if (url := _camera_url(c.entity, states))]
+
+
+def _camera_url(entity: str | None, states: dict) -> str | None:
+    if not entity or _state(states, entity) in MISSING:
+        return None
+    return CAMERA_URL.format(entity=entity)
 
 
 def _image_url(src: Source, states: dict) -> str | None:

@@ -25,7 +25,8 @@ class Source:
     progress: str | None = None  # entity with 0-100
     total_minutes: str | None = None  # entity with the cycle length, to work out progress
     stage: str | None = None  # entity with a more specific status while running
-    image: str | None = None  # image.* entity shown beside a single big ring
+    image: str | None = None  # image.* entity: the print thumbnail
+    camera: str | None = None  # camera.* entity: live view while it runs (detail view)
 
     def is_done(self, state: str) -> bool:
         return state in self.done
@@ -50,6 +51,7 @@ def bambu(id: str, name: str, prefix: str) -> Source:
         progress=f"sensor.{prefix}_print_progress",
         stage=f"sensor.{prefix}_current_stage",
         image=f"image.{prefix}_cover_image",
+        camera=f"camera.{prefix}_camera",
     )
 
 
@@ -69,4 +71,16 @@ SOURCES: list[Source] = [
     bambu("p1s_mono", "P1S Mono", "p1s_01p00c5b1101239"),
     lg_thinq("washer", "Washer", "washer", {"end"}),
     lg_thinq("dryer", "Dryer", "kitchen_dryer", {"end", "wrinkle_care"}),
+]
+
+
+@dataclass(frozen=True)
+class Camera:
+    entity: str  # camera.* entity
+    name: str
+
+
+# Shown in a side column of the detail view, always (not just while something runs).
+# Entity IDs: HA -> Settings -> Entities, search "camera.".
+CAMERAS: list[Camera] = [
 ]

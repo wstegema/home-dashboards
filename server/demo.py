@@ -45,6 +45,18 @@ SCENARIOS: dict[str, tuple[int, str | None]] = {
 }
 
 
+# Placeholder pictures (web/shared/demo/) so the media layout can be checked without HA.
+DEMO_CAMERA = "/shared/demo/camera.svg"
+DEMO_PRINT = "/shared/demo/print.svg"
+
+
+def demo_cameras() -> list[dict]:
+    return [
+        {"id": "camera.demo_front", "name": "Front door", "url": DEMO_CAMERA},
+        {"id": "camera.demo_garage", "name": "Garage", "url": DEMO_CAMERA},
+    ]
+
+
 def demo_items(name: str, real_states: dict, now: float) -> list[dict]:
     """Items for a scenario. Real states are kept so printer cover images still resolve."""
     count, first_ends_as = SCENARIOS.get(name, (0, None))
@@ -68,4 +80,10 @@ def demo_items(name: str, real_states: dict, now: float) -> list[dict]:
         if n == 0 and first_ends_as:
             put(src.state, first_ends_as)
             done_at[src.id] = now - 3 * 60
-    return build_items(DEMO_SOURCES, states, now, done_at)
+    items = build_items(DEMO_SOURCES, states, now, done_at)
+    for item in items:
+        if item["id"].startswith("p1s"):
+            item["image"] = item["image"] or DEMO_PRINT
+            if item["status"] == "running":
+                item["camera"] = DEMO_CAMERA
+    return items

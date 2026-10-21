@@ -7,11 +7,12 @@ Writes previews/preview.png.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-BASE = "http://127.0.0.1:8090"
+BASE = os.environ.get("PREVIEW_BASE", "http://127.0.0.1:8090")
 EDGE = Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
 OUT = Path(__file__).resolve().parent.parent / "previews"
 ROW_HEIGHT = 304  # tallest frame (720 x 0.4 = 288) plus spacing
