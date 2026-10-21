@@ -58,13 +58,15 @@ def app(name):
             [], (1, 1), (1, 1))
 
 
-def frame(url, w, h, ph=2):
+def frame(url, w, h, ph=2):  # ph: height on the phone layout
     return ("iframe", {"embedUrl": url, "allowScrolling": False, "allowFullScreen": True},
             [], (w, h), (3, ph))
 
 
 def camera(entity_id, name):
-    return frame(f"{DASH}/camera/?entity={entity_id}&name={name.replace(' ', '%20')}", 4, 3)
+    kind, options, integrations, desktop, _ = frame(
+        f"{DASH}/camera/?entity={entity_id}&name={name.replace(' ', '%20')}", 2, 2)
+    return kind, options, integrations, desktop, (1, 1)  # phone: three small squares in a row
 
 
 def widget(kind, integrations, w, h, ph, options=None):
@@ -79,20 +81,26 @@ ACCENT = {
 
 CHICAGO = {"name": "Chicago", "latitude": 41.948577, "longitude": -87.7001841}
 
-# ---- the board: (title or None for no frame, desktop width, tiles) ----
+# ---- the board: (title or None for no frame, desktop width, tiles[, fixed desktop (x, y)]) ----
+# Top: clock + weather over "Needs attention" on the left, home status on the right.
 GROUPS = [
     (None, 12, [
-        widget("clock", [], 3, 2, 2, {"is24HourFormat": False, "customTimeFormat": "h:mm A",
+        # Clock with the weather built in (the separate weather widget draws huge arrows in short tiles).
+        widget("clock", [], 6, 1, 1, {"is24HourFormat": False, "customTimeFormat": "h:mm A",
                                       "useCustomTimezone": True, "timezone": "America/Chicago",
-                                      "showDate": True, "dateFormat": "dddd, MMMM D"}),
-        frame(f"{DASH}/status/", 9, 4, 3),
-        widget("weather", [], 3, 2, 2, {"isFormatFahrenheit": True, "disableTemperatureDecimals": True,
-                                        "location": CHICAGO, "hasForecast": True, "forecastDayCount": 4}),
+                                      "showDate": True, "dateFormat": "dddd, MMMM D",
+                                      "showWeather": True, "weatherLocation": CHICAGO,
+                                      "isWeatherFormatFahrenheit": True}),
+        frame(f"{DASH}/status/?idle=quiet", 6, 2, 3),
     ]),
+    ("Needs attention", 6, [
+        entity("sensor.motion_detector_battery_level", "Motion battery", "%", w=2),
+        entity("sensor.glass_break_battery_level", "Glass-break", "%", w=2),
+        entity("sensor.litter_robot_waste_drawer", "Litter drawer", w=2),
+    ], (0, 1)),
     ("Climate & air", 6, [
         entity("climate.living_room_thermostat", "Thermostat", w=2),
-        entity("sensor.living_room_thermostat_temperature", "Living room", "°F"),
-        entity("sensor.living_room_thermostat_humidity", "Humidity", "%"),
+        entity("sensor.living_room_thermostat_humidity", "Living room humidity", "%", w=2),
         entity("sensor.office_awair_element_temperature", "Office", "°F"),
         entity("sensor.office_awair_element_humidity", "Office humidity", "%"),
         entity("sensor.office_awair_element_score", "Air score", w=2),
@@ -114,23 +122,18 @@ GROUPS = [
         light("light.decorative_lights", "Decorative"),
         light("light.kitchen_undercounter", "Undercounter"),
     ]),
-    ("Needs attention", 6, [
-        entity("sensor.motion_detector_battery_level", "Motion sensor battery", "%", w=2),
-        entity("sensor.glass_break_battery_level", "Glass-break battery", "%", w=2),
-        entity("sensor.litter_robot_waste_drawer", "Litter drawer", "%", w=2),
-    ]),
-    ("Cameras", 12, [
+    ("Cameras", 6, [
         camera("camera.cat_cam", "Cat Cam"),
         camera("camera.pan", "Pan"),
         camera("camera.porch_cam", "Porch"),
     ]),
-    ("Apps", 12, [app(n) for n in APP]),
+    ("Apps", 12, [app(n) for n in APP if n != "Home status"]),  # home status is embedded above
     ("Server", 12, [
         widget("systemResources", [UNRAID], 4, 4, 3),
-        widget("systemDisks", [UNRAID], 4, 4, 3),
-        widget("healthMonitoring", [UNRAID], 4, 4, 4),
-        widget("dockerContainers", [], 8, 4, 4),
-        widget("dnsHoleSummary", [PIHOLE], 4, 3, 2),
+        widget("systemDisks", [UNRAID], 4, 4, 4),
+        widget("healthMonitoring", [UNRAID], 4, 4, 5),
+        widget("dockerContainers", [], 8, 3, 4),
+        widget("dnsHoleSummary", [PIHOLE], 4, 2, 2),
         widget("dnsHoleControls", [PIHOLE], 4, 1, 1),
     ]),
 ]
@@ -166,14 +169,16 @@ def build(board):
     items = []
     # Groups sit side by side when two half-width ones follow each other.
     cursor = {"base": (0, 0, 0), "mobile": 0}  # base: (x, y, row height)
-    for title, width, tiles in GROUPS:
+    for title, width, tiles, *fixed in GROUPS:
         base_pos, base_h = pack(tiles, width, 3)
         mob_pos, mob_h = pack(tiles, 3, 4)
         if title:
             # A titled section: tiles are placed inside it.
             sid = uid()
             x, y, row_h = cursor["base"]
-            if x + width > 12:
+            if fixed:
+                x, y = fixed[0]
+            elif x + width > 12:
                 x, y, row_h = 0, y + row_h, 0
             sections.append({
                 "id": sid, "kind": "dynamic",
@@ -181,14 +186,15 @@ def build(board):
                             "collapsible": False, "showOpenAll": False, "scrollable": False},
                 "layouts": [
                     {"layoutId": base["id"], "xOffset": x, "yOffset": y, "width": width,
-                     "height": base_h + 1, "parentSectionId": root},
+                     "height": base_h, "parentSectionId": root},
                     {"layoutId": mobile["id"], "xOffset": 0, "yOffset": cursor["mobile"], "width": 3,
-                     "height": mob_h + 1, "parentSectionId": root},
+                     "height": mob_h, "parentSectionId": root},
                 ],
             })
             parent, x0, y0, my0 = sid, 0, 0, 0
-            cursor["base"] = (x + width, y, max(row_h, base_h + 1))
-            cursor["mobile"] += mob_h + 1
+            if not fixed:  # a fixed group sits in space the layout already reserved
+                cursor["base"] = (x + width, y, max(row_h, base_h))
+            cursor["mobile"] += mob_h
         else:
             x, y, row_h = cursor["base"]
             parent, x0, y0, my0 = root, 0, y + row_h, cursor["mobile"]

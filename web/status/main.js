@@ -2,6 +2,8 @@
 // ?demo=<scenario> shows fake data. ?static=1 fetches once (for screenshots).
 // ?view=detail adds a header clock and more facts per item, for big screens.
 // ?view=eink is black-on-white line art that redraws once a minute (transparent LCD).
+// &idle=quiet shows a small "Nothing running" instead of the big clock (for embedding
+// next to a page that already has a clock, e.g. Homarr).
 import { CAMERA_REFRESH_MS, camerasHtml, refreshLive } from "./cameras.js";
 import { clockHtml, updateClock } from "./clock.js";
 import { ROTATE_MS, itemsOnPage, pageCount, pickLayout } from "./layout.js";
@@ -15,6 +17,7 @@ const params = new URLSearchParams(location.search);
 const query = params.has("demo") ? `?demo=${encodeURIComponent(params.get("demo"))}` : "";
 const view = ["detail", "eink"].includes(params.get("view")) ? params.get("view") : "simple";
 const detail = view === "detail";
+const quietIdle = params.get("idle") === "quiet";
 document.body.dataset.view = view;
 // E-ink style: update on the minute and page slowly, so nothing flickers.
 const TICK_MS = view === "eink" ? 60000 : 1000;
@@ -32,7 +35,7 @@ function render() {
   const layout = pickLayout(items.length);
   screen.dataset.layout = layout;
   screen.innerHTML = layout === "idle"
-    ? clockHtml()
+    ? (quietIdle ? `<div class="nothing">Nothing running</div>` : clockHtml())
     : items.map((item, slot) => tileHtml(item, slot, {
         withCover: layout === "one", detail, withCamera: layout === "one" || layout === "two", tz: data.tz,
       })).join("");
