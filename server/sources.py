@@ -83,4 +83,7 @@ class Camera:
 # Shown in a side column of the detail view, always (not just while something runs).
 # Entity IDs: HA -> Settings -> Entities, search "camera.".
 CAMERAS: list[Camera] = [
+    Camera("camera.cat_cam", "Cat Cam"),
+    Camera("camera.pan", "Pan"),
+    Camera("camera.porch_cam", "Porch"),  # hidden while HA reports it unavailable
 ]

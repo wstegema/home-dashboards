@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera</title>
+<link rel="icon" href="/shared/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="camera.css">
+</head>
+<body>
+<!-- One camera, for embedding (e.g. a Homarr iframe widget).
+     /camera/?entity=camera.cat_cam&name=Cat%20Cam&every=3
+     The picture comes through this server, so the embedding page never sees the HA token. -->
+<figure id="camera">
+  <img id="picture" alt="">
+  <figcaption id="name"></figcaption>
+  <div id="offline" hidden>Camera unavailable</div>
+</figure>
+<script type="module" src="camera.js"></script>
+</body>
+</html>

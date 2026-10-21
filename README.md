@@ -9,6 +9,7 @@ One container keeps one connection to Home Assistant and serves:
 | `/status/` | The dashboard. `?demo=0`…`6`, `8`, `done`, `failed` shows fake data. |
 | `/status/?view=detail` | Big screens: header clock, stage, percent, finish time, printer camera + print thumbnail, camera column |
 | `/status/?view=eink` | Transparent LCD: black line art on white (white = clear glass), redraws once a minute |
+| `/camera/?entity=camera.x&name=X` | One camera filling the page, refreshed every 3 s (`&every=` seconds). For embedding, e.g. Homarr. |
 | `/preview/` | Every demo at 320×240 and 16:9, side by side |
 | `/api/status` | The data as JSON. The page and any future client (e.g. the CYD) read only this. |
 | `/api/status/stream` | Same data, pushed on change (server-sent events) |

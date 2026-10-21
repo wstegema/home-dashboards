@@ -139,3 +139,4 @@ def root():
 app.mount("/shared", StaticFiles(directory=config.WEB_DIR / "shared"), name="shared")
 app.mount("/status", StaticFiles(directory=config.WEB_DIR / "status", html=True), name="status")
 app.mount("/preview", StaticFiles(directory=config.WEB_DIR / "preview", html=True), name="preview")
+app.mount("/camera", StaticFiles(directory=config.WEB_DIR / "camera", html=True), name="camera")
