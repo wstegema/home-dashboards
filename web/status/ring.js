@@ -1,12 +1,13 @@
 // One item tile: ring + time + name (+ detail and cover image when there's room).
-import { escapeHtml, ringText } from "./format.js";
+// The detail view adds percent, finish time and "finished … ago" lines.
+import { ago, clockTime, escapeHtml, ringText } from "./format.js";
 
 const SLOTS = 6;
 
-export function tileHtml(item, slot, { withCover = false } = {}) {
+export function tileHtml(item, slot, { withCover = false, detail = false, tz = null } = {}) {
   const color = item.status === "failed" ? "var(--failed)" : `var(--slot-${(slot % SLOTS) + 1})`;
   const pct = item.pct ?? 0;
-  const cover = withCover && item.image ? `<img class="cover" src="${escapeHtml(item.image)}" alt="">` : "";
+  const cover = (withCover || detail) && item.image ? `<img class="cover" src="${escapeHtml(item.image)}" alt="">` : "";
   return `<section class="tile" style="--c:${color}"><div class="tile-body">
     <div class="ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -18,12 +19,26 @@ export function tileHtml(item, slot, { withCover = false } = {}) {
     <div class="info">
       <div class="name">${escapeHtml(item.name)}</div>
       <div class="detail">${escapeHtml(item.detail)}</div>
+      ${detail ? factsHtml(item, slot, tz) : ""}
       ${cover}
     </div>
   </div></section>`;
 }
 
-// Called every second: rewrite the time inside each ring.
+// Detail view only: the facts under the name.
+function factsHtml(item, slot, tz) {
+  const facts = [];
+  if (item.status === "running") {
+    if (item.pct != null) facts.push(`<span class="fact-big">${item.pct}%</span>`);
+    if (item.ends_at != null) facts.push(`<span>Ends ${clockTime(item.ends_at, tz)}</span>`);
+  } else if (item.done_at != null) {
+    facts.push(`<span>${item.status === "failed" ? "Failed" : "Finished"} ${clockTime(item.done_at, tz)}</span>`);
+    facts.push(`<span class="ago" data-slot="${slot}"></span>`);
+  }
+  return `<div class="facts">${facts.join("")}</div>`;
+}
+
+// Called every second: rewrite the time inside each ring (and "… ago" lines).
 export function updateTimes(root, items, now) {
   root.querySelectorAll(".time").forEach((el) => {
     const item = items[Number(el.dataset.slot)];
@@ -31,5 +46,8 @@ export function updateTimes(root, items, now) {
     const parts = ringText(item, secondsLeft);
     el.dataset.len = parts.join(" ").length > 4 ? "long" : "short";
     el.innerHTML = parts.map((p) => `<span>${p}</span>`).join("");
+  });
+  root.querySelectorAll(".ago").forEach((el) => {
+    el.textContent = ago(now - items[Number(el.dataset.slot)].done_at);
   });
 }

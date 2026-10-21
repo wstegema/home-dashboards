@@ -19,13 +19,14 @@
   const SIZES = [
     { w: 320, h: 240, scale: 1 },      // CYD
     { w: 1280, h: 720, scale: 0.4 },   // any 16:9 browser
+    { w: 1920, h: 1080, scale: 0.27, view: "detail" },  // big screen, detail view
   ];
   const params = new URLSearchParams(location.search);
   const demos = params.get("demos")?.split(",") ?? (await (await fetch("/api/demos")).json());
   document.getElementById("sheet").innerHTML = demos.map((demo) => `
-    <div class="row"><b>${demo}</b>${SIZES.map(({ w, h, scale }) => `
+    <div class="row"><b>${demo}</b>${SIZES.map(({ w, h, scale, view }) => `
       <div class="frame" style="width:${w * scale}px;height:${h * scale}px">
-        <iframe src="/status/?static=1&demo=${demo}" width="${w}" height="${h}" style="transform:scale(${scale})"></iframe>
+        <iframe src="/status/?static=1&demo=${demo}${view ? `&view=${view}` : ""}" width="${w}" height="${h}" style="transform:scale(${scale})"></iframe>
       </div>`).join("")}
     </div>`).join("");
 </script>

@@ -1,0 +1,55 @@
+/* Detail view (?view=detail), for big screens: a clock bar on top, every
+   tile laid out ring-left / facts-right, with stage, percent, finish time
+   and the printer's cover image. Only rules for this view live here. */
+
+body[data-view="detail"] {
+  --header-h: 9vh;
+}
+
+#header {
+  box-sizing: border-box;
+  height: var(--header-h);
+  padding: 0 var(--gap);
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+  font-size: calc(var(--header-h) * 0.4);
+  border-bottom: 2px solid var(--track);
+}
+#header[hidden] { display: none; }
+#header .clock { font-size: 1.4em; }
+#header .clock small { font-size: 0.5em; }
+#header .date { font-size: 1em; margin: 0; color: var(--fg-dim); }
+#header .page { margin-left: auto; color: var(--fg-dim); }
+
+body[data-view="detail"] #header:not([hidden]) + #screen { height: calc(100vh - var(--header-h)); }
+
+/* Every tile becomes a card: ring left, facts right. */
+body[data-view="detail"] #screen:not([data-layout="idle"]) .tile-body {
+  --dir: row;
+  --name-size: clamp(16px, 11cqh, 56px);
+  --d: min(88cqh, 46cqw);
+  justify-content: flex-start;
+  gap: 5cqw;
+  padding: 0 3cqw;
+}
+body[data-view="detail"] .tile {
+  background: #0d0d0d;
+  border-radius: 2cqmin;
+  box-shadow: inset 4px 0 0 var(--c);  /* color stripe on the left edge */
+}
+body[data-view="detail"] .info { align-items: flex-start; text-align: left; flex: 1; gap: 0.35em; }
+body[data-view="detail"] .detail { display: block; font-size: calc(var(--name-size) * 0.7); }
+
+.facts { display: flex; flex-direction: column; gap: 0.15em; font-size: calc(var(--name-size) * 0.7); color: var(--fg-dim); }
+.facts .fact-big { color: var(--c); font-size: 1.6em; }
+
+body[data-view="detail"] .cover { width: min(34cqh, 30cqw); margin-top: 0.2em; }
+
+/* Small tiles: keep ring, name and the time facts; drop the picture. */
+@container tile (max-height: 260px) {
+  body[data-view="detail"] .cover { display: none; }
+}
+
+/* The two-item layout uses side-by-side cards even on squarer screens. */
+body[data-view="detail"] #screen[data-layout="two"] { grid-template: 1fr / 1fr 1fr; }

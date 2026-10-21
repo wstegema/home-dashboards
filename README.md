@@ -18,7 +18,7 @@ One container keeps one connection to Home Assistant and serves:
 python -m venv .venv
 .venv\Scripts\pip install -r requirements-dev.txt
 copy .env.example .env            # paste a HA token into .env
-.venv\Scripts\python -m uvicorn server.web:app --port 8080 --reload
+.venv\Scripts\python -m uvicorn server.web:app --port 8090 --reload
 ```
 
 - Tests: `.venv\Scripts\python -m pytest`

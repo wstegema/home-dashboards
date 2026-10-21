@@ -47,7 +47,7 @@ def build_items(sources: list[Source], states: dict, now: float, done_at: dict[s
         if src.is_active(state):
             running.append(_running_item(src, states, now))
         elif src.id in done_at and now - done_at[src.id] < DONE_LINGER_SECONDS:
-            done.append((done_at[src.id], _done_item(src, state)))
+            done.append((done_at[src.id], _done_item(src, states, state, done_at[src.id])))
     done.sort(key=lambda pair: -pair[0])
     running.sort(key=lambda it: it["ends_at"] if it["ends_at"] is not None else math.inf)
     return [item for _, item in done] + running
@@ -65,6 +65,7 @@ def _running_item(src: Source, states: dict, now: float) -> dict:
         "id": src.id,
         "name": src.name,
         "status": "running",
+        "done_at": None,
         "ends_at": ends_at,
         "seconds_left": seconds_left,
         "pct": None if pct is None else max(0, min(100, round(pct))),
@@ -73,17 +74,18 @@ def _running_item(src: Source, states: dict, now: float) -> dict:
     }
 
 
-def _done_item(src: Source, state: str) -> dict:
+def _done_item(src: Source, states: dict, state: str, done_at: float) -> dict:
     failed = state in src.failed
     return {
         "id": src.id,
         "name": src.name,
         "status": "failed" if failed else "done",
+        "done_at": done_at,
         "ends_at": None,
         "seconds_left": None,
         "pct": 100,
         "detail": "Failed" if failed else "Done",
-        "image": None,
+        "image": _image_url(src, states),
     }
 
 

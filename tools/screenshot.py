@@ -1,6 +1,6 @@
 """Screenshot the preview sheet (every demo at every size) with headless Edge.
 
-Usage, with the server running on port 8080:
+Usage, with the server running on port 8090:
     python tools/screenshot.py              # all scenarios
     python tools/screenshot.py 1 4 done     # some scenarios
 Writes previews/preview.png.
@@ -11,11 +11,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-BASE = "http://127.0.0.1:8080"
+BASE = "http://127.0.0.1:8090"
 EDGE = Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
 OUT = Path(__file__).resolve().parent.parent / "previews"
 ROW_HEIGHT = 304  # tallest frame (720 x 0.4 = 288) plus spacing
-WIDTH = 960
+WIDTH = 1500
 CHROME = 140  # headless Edge's viewport is shorter than --window-size
 ALL_DEMOS = 10
 

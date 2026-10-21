@@ -100,6 +100,7 @@ def test_seen_finishing_shows_done_for_30_minutes():
     done_at = tracker.update(SOURCES, s, NOW + 10)
     (item,) = run(s, done_at, NOW + 10)
     assert item["status"] == "done" and item["detail"] == "Done" and item["pct"] == 100
+    assert item["done_at"] == NOW + 10
     assert run(s, done_at, NOW + 10 + DONE_LINGER_SECONDS - 1) != []
     assert run(s, done_at, NOW + 10 + DONE_LINGER_SECONDS) == []
 
