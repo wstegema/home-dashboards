@@ -8,3 +8,6 @@ services:
     environment:
       - HA_URL=${HA_URL}
       - HA_TOKEN=${HA_TOKEN}
+    labels:
+      net.unraid.docker.icon: https://raw.githubusercontent.com/wstegema/home-dashboards/main/web/shared/icon.png
+      net.unraid.docker.webui: http://[IP]:[PORT:8095]/status/
