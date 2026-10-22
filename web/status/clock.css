@@ -8,6 +8,3 @@
 }
 .clock small { font-size: 0.25em; margin-left: 0.15em; }
 .date { font-size: max(16px, 8vh); margin-top: 0.4em; }
-
-/* &idle=quiet: when embedded beside another clock, just say so, quietly. */
-.nothing { font-size: max(14px, 12vmin); color: var(--fg-dim); }
