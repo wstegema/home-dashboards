@@ -63,12 +63,6 @@ def frame(url, w, h, ph=2):  # ph: height on the phone layout
             [], (w, h), (3, ph))
 
 
-def camera(entity_id, name):
-    kind, options, integrations, desktop, _ = frame(
-        f"{DASH}/camera/?entity={entity_id}&name={name.replace(' ', '%20')}", 2, 2)
-    return kind, options, integrations, desktop, (1, 1)  # phone: three small squares in a row
-
-
 def widget(kind, integrations, w, h, ph, options=None):
     return (kind, options or {}, integrations, (w, h), (3, ph))
 
@@ -76,7 +70,7 @@ def widget(kind, integrations, w, h, ph, options=None):
 # Group border colors: the dashboard palette (web/shared/tokens.css), in order.
 ACCENT = {
     "Climate & air": "#ff8000", "Security": "#ffe000", "Lights": "#00e676",
-    "Needs attention": "#ff2020", "Cameras": "#00d8ff", "Apps": "#ff4fc3", "Server": "#b06cff",
+    "Needs attention": "#ff2020", "Apps": "#ff4fc3", "Server": "#b06cff",
 }
 
 CHICAGO = {"name": "Chicago", "latitude": 41.948577, "longitude": -87.7001841}
@@ -114,18 +108,13 @@ GROUPS = [
         entity("cover.bedroom_blind", "Bedroom blind", w=3),
         entity("cover.back_door_blind", "Back door blind", w=3),
     ]),
-    ("Lights", 6, [
+    ("Lights", 12, [
         light("light.living_room_lights", "Living room"),
         light("light.kitchen_lights", "Kitchen"),
         light("light.office_lights", "Office"),
         light("light.bedroom_lights", "Bedroom"),
         light("light.decorative_lights", "Decorative"),
         light("light.kitchen_undercounter", "Undercounter"),
-    ]),
-    ("Cameras", 6, [
-        camera("camera.cat_cam", "Cat Cam"),
-        camera("camera.pan", "Pan"),
-        camera("camera.porch_cam", "Porch"),
     ]),
     ("Apps", 12, [app(n) for n in APP if n != "Home status"]),  # home status is embedded above
     ("Server", 12, [

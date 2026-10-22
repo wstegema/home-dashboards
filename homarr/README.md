@@ -9,7 +9,6 @@ The launcher and home overview at http://192.168.1.201:10004 (set as home on des
 | Security | Alarm, door locks, blinds |
 | Lights | Room lights; tap to toggle |
 | Needs attention | Low sensor batteries, litter drawer |
-| Cameras | Cat Cam, Pan, Porch, through this server's `/camera/` page |
 | Apps | Every Unraid service with a web UI |
 | Server | CPU/RAM, disks, health, Docker, Pi-hole |
 
