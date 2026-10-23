@@ -43,6 +43,9 @@ function factsHtml(item, slot, tz) {
   if (item.status === "running") {
     if (item.pct != null) facts.push(`<span class="fact-big">${item.pct}%</span>`);
     if (item.ends_at != null) facts.push(`<span>Ends ${clockTime(item.ends_at, tz)}</span>`);
+  } else if (item.status === "cooling") {
+    if (item.temp != null) facts.push(`<span class="fact-big">${item.temp}°C</span>`);
+    facts.push(`<span>Finished ${clockTime(item.done_at, tz)}</span>`);
   } else if (item.done_at != null) {
     facts.push(`<span>${item.status === "failed" ? "Failed" : "Finished"} ${clockTime(item.done_at, tz)}</span>`);
     facts.push(`<span class="ago" data-slot="${slot}"></span>`);

@@ -18,7 +18,7 @@ from . import config
 from .demo import SCENARIOS, demo_cameras, demo_items
 from .ha import HomeAssistant
 from .sources import CAMERAS, SOURCES
-from .status import DoneTracker, build_items, cameras
+from .status import FinishTracker, build_items, cameras
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("server")
@@ -27,7 +27,7 @@ HEARTBEAT_SECONDS = 15  # resend at least this often, even if nothing changed
 SETTLE_SECONDS = 0.3  # bundle a burst of HA changes into one push
 
 ha = HomeAssistant(config.HA_URL, config.HA_TOKEN)
-tracker = DoneTracker()
+tracker = FinishTracker()
 
 
 async def track_done() -> None:

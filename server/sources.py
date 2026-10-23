@@ -27,6 +27,10 @@ class Source:
     stage: str | None = None  # entity with a more specific status while running
     image: str | None = None  # image.* entity: the print thumbnail
     camera: str | None = None  # camera.* entity: live view while it runs (detail view)
+    # After finishing:
+    cooldown: str | None = None  # temperature entity: "Cooling down" until it reaches COOLED_C
+    wait_for: str | None = None  # source id: hold wait_text until that source starts running
+    wait_text: str = ""
 
     def is_done(self, state: str) -> bool:
         return state in self.done
@@ -52,24 +56,27 @@ def bambu(id: str, name: str, prefix: str) -> Source:
         stage=f"sensor.{prefix}_current_stage",
         image=f"image.{prefix}_cover_image",
         camera=f"camera.{prefix}_camera",
+        cooldown=f"sensor.{prefix}_bed_temperature",
     )
 
 
-def lg_thinq(id: str, name: str, prefix: str, done: set[str]) -> Source:
+def lg_thinq(id: str, name: str, prefix: str, done: set[str], **after) -> Source:
     # LG ThinQ's "remaining_time" sensor is actually the finish timestamp.
+    # These machines switch to power_off ~30 s after "end"; that is not the door opening.
     return Source(
         id, name,
         state=f"sensor.{prefix}_current_status",
         ends=f"sensor.{prefix}_remaining_time",
         done=frozenset(done),
         total_minutes=f"sensor.{prefix}_total_time",
+        **after,
     )
 
 
 SOURCES: list[Source] = [
     bambu("p1s_color", "P1S Color", "office_p1s_color"),
     bambu("p1s_mono", "P1S Mono", "p1s_01p00c5b1101239"),
-    lg_thinq("washer", "Washer", "washer", {"end"}),
+    lg_thinq("washer", "Washer", "washer", {"end"}, wait_for="dryer", wait_text="Move to dryer"),
     lg_thinq("dryer", "Dryer", "kitchen_dryer", {"end", "wrinkle_care"}),
 ]
 

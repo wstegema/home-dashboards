@@ -5,53 +5,125 @@ Pure logic, no I/O, so it can be tested with plain dicts.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import datetime
 
 from .sources import MISSING, Source
 
-DONE_LINGER_SECONDS = 30 * 60
+DONE_LINGER_SECONDS = 30 * 60  # "Done" / "Failed" stay this long
+COOLED_C = 25  # a printer bed at or below this is cool enough to take the print off
+COOL_TIMEOUT_SECONDS = 3 * 3600  # call it done anyway if the room is too warm to get there
 IMAGE_URL = "/api/image/{entity}?v={version}"
 CAMERA_URL = "/api/camera/{entity}"
 
 
-class DoneTracker:
-    """Remembers when each source was *seen* finishing.
+@dataclass
+class Finish:
+    """What a source is doing since it was seen finishing."""
+    phase: str  # "cooling" | "done" | "failed" | "waiting"
+    since: float  # when this phase started
+    start_temp: float | None = None  # cooling only: temperature when cooling began
+    other_stopped: bool = False  # waiting only: the other source has been seen not running
 
-    The first value after startup never counts, so a printer that finished
-    hours ago doesn't show "Done". A brief unknown/unavailable blip is skipped
-    over, so it neither clears a Done nor fakes a new one.
+
+class FinishTracker:
+    """Follows each source from the moment it is *seen* finishing.
+
+    - cooldown sources (printers): cooling -> done once cool (or after a timeout)
+    - wait_for sources (washer): waiting until the other source starts
+    - others: done
+    done / failed expire after DONE_LINGER_SECONDS. A new cycle clears everything.
+
+    The first value after startup never counts, so something that finished
+    hours ago shows nothing. unknown/unavailable blips are skipped over, and
+    switching off (power_off) doesn't clear anything: LG machines do that by
+    themselves 30 s after finishing.
     """
 
     def __init__(self) -> None:
         self._prev: dict[str, str] = {}
-        self.done_at: dict[str, float] = {}
+        self.finished: dict[str, Finish] = {}
 
-    def update(self, sources: list[Source], states: dict, now: float) -> dict[str, float]:
+    def update(self, sources: list[Source], states: dict, now: float) -> dict[str, Finish]:
         for src in sources:
             state = _state(states, src.state)
             if state in MISSING:
                 continue
             prev = self._prev.get(src.id)
-            if not src.is_done(state):
-                self.done_at.pop(src.id, None)
-            elif prev is not None and not src.is_done(prev):
-                self.done_at[src.id] = now
             self._prev[src.id] = state
-        return self.done_at
+            if src.is_active(state):
+                self.finished.pop(src.id, None)  # a new cycle
+            elif src.is_done(state) and prev is not None and not src.is_done(prev):
+                self.finished[src.id] = self._start(src, state, states, now)
+
+        by_id = {src.id: src for src in sources}
+        for src_id, f in list(self.finished.items()):
+            src = by_id[src_id]
+            if f.phase == "cooling":
+                temp = _number(states, src.cooldown)
+                if (temp is not None and temp <= COOLED_C) or now - f.since >= COOL_TIMEOUT_SECONDS:
+                    self.finished[src_id] = Finish("done", now)
+            elif f.phase == "waiting":
+                # Cleared when the other source *starts* a cycle, not if it was
+                # already running the previous load when this one finished.
+                other = by_id.get(src.wait_for)
+                other_state = _state(states, other.state) if other else ""
+                if other_state in MISSING:
+                    continue
+                if not other.is_active(other_state):
+                    f.other_stopped = True
+                elif f.other_stopped:
+                    del self.finished[src_id]
+            elif now - f.since >= DONE_LINGER_SECONDS:
+                del self.finished[src_id]
+        return self.finished
+
+    @staticmethod
+    def _start(src: Source, state: str, states: dict, now: float) -> Finish:
+        if state in src.failed:
+            return Finish("failed", now)
+        if src.cooldown:
+            temp = _number(states, src.cooldown)
+            if temp is not None and temp > COOLED_C:
+                return Finish("cooling", now, start_temp=temp)
+        if src.wait_for:
+            return Finish("waiting", now)
+        return Finish("done", now)
 
 
-def build_items(sources: list[Source], states: dict, now: float, done_at: dict[str, float]) -> list[dict]:
-    """Done items first (they need you, newest first), then running ones, soonest finish first."""
-    done, running = [], []
+def build_items(sources: list[Source], states: dict, now: float, finished: dict[str, Finish]) -> list[dict]:
+    """Things that need you first (done, failed, waiting: newest first), then
+    cooling, then running ones, soonest finish first."""
+    attention, cooling, running = [], [], []
     for src in sources:
         state = _state(states, src.state)
+        f = finished.get(src.id)
         if src.is_active(state):
             running.append(_running_item(src, states, now))
-        elif src.id in done_at and now - done_at[src.id] < DONE_LINGER_SECONDS:
-            done.append((done_at[src.id], _done_item(src, states, state, done_at[src.id])))
-    done.sort(key=lambda pair: -pair[0])
+        elif f and f.phase == "cooling":
+            cooling.append((f.since, _cooling_item(src, states, f)))
+        elif f:
+            attention.append((f.since, _finished_item(src, states, f)))
+    attention.sort(key=lambda pair: -pair[0])
+    cooling.sort(key=lambda pair: pair[0])
     running.sort(key=lambda it: it["ends_at"] if it["ends_at"] is not None else math.inf)
-    return [item for _, item in done] + running
+    return [it for _, it in attention] + [it for _, it in cooling] + running
+
+
+def _base(src: Source, states: dict, status: str) -> dict:
+    return {
+        "id": src.id,
+        "name": src.name,
+        "status": status,
+        "done_at": None,
+        "ends_at": None,
+        "seconds_left": None,
+        "pct": None,
+        "temp": None,
+        "detail": "",
+        "image": _image_url(src, states),
+        "camera": None,
+    }
 
 
 def _running_item(src: Source, states: dict, now: float) -> dict:
@@ -63,33 +135,33 @@ def _running_item(src: Source, states: dict, now: float) -> dict:
         pct = 100 * (1 - seconds_left / (total * 60))
     stage = _state(states, src.stage)
     return {
-        "id": src.id,
-        "name": src.name,
-        "status": "running",
-        "done_at": None,
+        **_base(src, states, "running"),
         "ends_at": ends_at,
         "seconds_left": seconds_left,
         "pct": None if pct is None else max(0, min(100, round(pct))),
         "detail": _pretty(stage if stage not in MISSING else _state(states, src.state)),
-        "image": _image_url(src, states),
         "camera": _camera_url(src.camera, states),
     }
 
 
-def _done_item(src: Source, states: dict, state: str, done_at: float) -> dict:
-    failed = state in src.failed
+def _cooling_item(src: Source, states: dict, f: Finish) -> dict:
+    """Ring fills as the bed cools from where it started down to COOLED_C."""
+    temp = _number(states, src.cooldown)
+    pct = None
+    if temp is not None and f.start_temp and f.start_temp > COOLED_C:
+        pct = max(0, min(100, round(100 * (f.start_temp - temp) / (f.start_temp - COOLED_C))))
     return {
-        "id": src.id,
-        "name": src.name,
-        "status": "failed" if failed else "done",
-        "done_at": done_at,
-        "ends_at": None,
-        "seconds_left": None,
-        "pct": 100,
-        "detail": "Failed" if failed else "Done",
-        "image": _image_url(src, states),
-        "camera": None,
+        **_base(src, states, "cooling"),
+        "done_at": f.since,
+        "pct": pct,
+        "temp": None if temp is None else round(temp),
+        "detail": "Cooling down",
     }
+
+
+def _finished_item(src: Source, states: dict, f: Finish) -> dict:
+    detail = {"failed": "Failed", "waiting": src.wait_text or "Done"}.get(f.phase, "Done")
+    return {**_base(src, states, f.phase), "done_at": f.since, "pct": 100, "detail": detail}
 
 
 def cameras(cams: list, states: dict) -> list[dict]:

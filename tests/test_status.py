@@ -4,7 +4,7 @@ import pytest
 
 from server.demo import SCENARIOS, demo_items
 from server.sources import SOURCES
-from server.status import DONE_LINGER_SECONDS, DoneTracker, build_items
+from server.status import COOL_TIMEOUT_SECONDS, COOLED_C, DONE_LINGER_SECONDS, Finish, FinishTracker, build_items
 
 NOW = 1_800_000_000.0
 PRINTER, MONO, WASHER, DRYER = SOURCES
@@ -18,8 +18,14 @@ def states(**values: str) -> dict:
     return {e: {"entity_id": e, "state": v, "attributes": {}} for e, v in values.items()}
 
 
-def run(src_states: dict, done_at: dict | None = None, now: float = NOW) -> list[dict]:
-    return build_items(SOURCES, src_states, now, done_at or {})
+def run(src_states: dict, finished: dict | None = None, now: float = NOW) -> list[dict]:
+    return build_items(SOURCES, src_states, now, finished or {})
+
+
+def step(tracker: FinishTracker, now: float, **values: str) -> list[dict]:
+    """Feed one set of HA states to the tracker and return what the screen shows."""
+    s = states(**values)
+    return run(s, tracker.update(SOURCES, s, now), now)
 
 
 # ---- active / done rules ---------------------------------------------------
@@ -85,62 +91,125 @@ def test_cover_image_url_changes_with_picture():
     assert item["image"] == f"/api/image/{PRINTER.image}?v=2026-10-16T10:00:00"
 
 
-# ---- done tracking ----------------------------------------------------------
+# ---- finishing: general ------------------------------------------------------
 
 def test_finished_before_startup_shows_nothing():
-    tracker = DoneTracker()
-    s = states(**{PRINTER.state: "finish"})
-    assert run(s, tracker.update(SOURCES, s, NOW)) == []
+    assert step(FinishTracker(), NOW, **{PRINTER.state: "finish", PRINTER.cooldown: "60"}) == []
 
 
-def test_seen_finishing_shows_done_for_30_minutes():
-    tracker = DoneTracker()
-    tracker.update(SOURCES, states(**{PRINTER.state: "running"}), NOW)
-    s = states(**{PRINTER.state: "finish"})
-    done_at = tracker.update(SOURCES, s, NOW + 10)
-    (item,) = run(s, done_at, NOW + 10)
-    assert item["status"] == "done" and item["detail"] == "Done" and item["pct"] == 100
-    assert item["done_at"] == NOW + 10
-    assert run(s, done_at, NOW + 10 + DONE_LINGER_SECONDS - 1) != []
-    assert run(s, done_at, NOW + 10 + DONE_LINGER_SECONDS) == []
+def test_unavailable_blip_keeps_finish_and_fakes_nothing():
+    t = FinishTracker()
+    step(t, NOW, **{DRYER.state: "running"})
+    step(t, NOW, **{DRYER.state: "end"})
+    step(t, NOW + 60, **{DRYER.state: "unavailable"})
+    step(t, NOW + 120, **{DRYER.state: "end"})
+    assert t.finished["dryer"].since == NOW
 
 
-def test_failed_print_is_failed():
-    tracker = DoneTracker()
-    tracker.update(SOURCES, states(**{PRINTER.state: "running"}), NOW)
-    s = states(**{PRINTER.state: "failed"})
-    (item,) = run(s, tracker.update(SOURCES, s, NOW))
+def test_new_cycle_clears_finish():
+    t = FinishTracker()
+    step(t, NOW, **{DRYER.state: "running"})
+    step(t, NOW, **{DRYER.state: "end"})
+    assert step(t, NOW + 60, **{DRYER.state: "running"})[0]["status"] == "running"
+    assert "dryer" not in t.finished
+
+
+# ---- printers: cooling down, then done ------------------------------------------
+
+def test_print_finishing_hot_cools_down_then_done():
+    t = FinishTracker()
+    step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "55"})
+    (item,) = step(t, NOW + 10, **{PRINTER.state: "finish", PRINTER.cooldown: "55"})
+    assert item["status"] == "cooling" and item["detail"] == "Cooling down" and item["temp"] == 55
+    (item,) = step(t, NOW + 600, **{PRINTER.state: "finish", PRINTER.cooldown: "40"})
+    assert item["status"] == "cooling" and item["pct"] == 50  # 55 -> 25, halfway
+    (item,) = step(t, NOW + 1200, **{PRINTER.state: "finish", PRINTER.cooldown: str(COOLED_C)})
+    assert item["status"] == "done" and item["done_at"] == NOW + 1200
+
+
+def test_done_lasts_30_minutes_from_when_it_cooled():
+    t = FinishTracker()
+    step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "55"})
+    step(t, NOW, **{PRINTER.state: "finish", PRINTER.cooldown: "55"})
+    step(t, NOW + 1000, **{PRINTER.state: "finish", PRINTER.cooldown: "24"})
+    assert step(t, NOW + 1000 + DONE_LINGER_SECONDS - 1, **{PRINTER.state: "finish"}) != []
+    assert step(t, NOW + 1000 + DONE_LINGER_SECONDS, **{PRINTER.state: "finish"}) == []
+
+
+def test_cooling_gives_up_in_a_warm_room():
+    t = FinishTracker()
+    step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "55"})
+    step(t, NOW, **{PRINTER.state: "finish", PRINTER.cooldown: "55"})
+    (item,) = step(t, NOW + COOL_TIMEOUT_SECONDS, **{PRINTER.state: "finish", PRINTER.cooldown: "28"})
+    assert item["status"] == "done"
+
+
+def test_already_cool_print_is_done_straight_away():
+    t = FinishTracker()
+    step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "24"})
+    (item,) = step(t, NOW, **{PRINTER.state: "finish", PRINTER.cooldown: "24"})
+    assert item["status"] == "done"
+
+
+def test_failed_print_is_failed_right_away():
+    t = FinishTracker()
+    step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "55"})
+    (item,) = step(t, NOW, **{PRINTER.state: "failed", PRINTER.cooldown: "55"})
     assert item["status"] == "failed" and item["detail"] == "Failed"
 
 
-def test_turning_off_clears_done():
-    tracker = DoneTracker()
-    tracker.update(SOURCES, states(**{WASHER.state: "running"}), NOW)
-    tracker.update(SOURCES, states(**{WASHER.state: "end"}), NOW)
-    s = states(**{WASHER.state: "power_off"})
-    assert run(s, tracker.update(SOURCES, s, NOW + 60)) == []
+# ---- washer: move to dryer --------------------------------------------------------
+
+def test_washer_says_move_to_dryer_through_power_off():
+    t = FinishTracker()
+    step(t, NOW, **{WASHER.state: "running", DRYER.state: "power_off"})
+    step(t, NOW, **{WASHER.state: "end", DRYER.state: "power_off"})
+    # LG switches itself off 30 s later; hours later it still needs moving.
+    (item,) = step(t, NOW + 5 * 3600, **{WASHER.state: "power_off", DRYER.state: "power_off"})
+    assert item["status"] == "waiting" and item["detail"] == "Move to dryer"
 
 
-def test_unavailable_blip_keeps_done_and_fakes_nothing():
-    tracker = DoneTracker()
-    tracker.update(SOURCES, states(**{PRINTER.state: "running"}), NOW)
-    tracker.update(SOURCES, states(**{PRINTER.state: "finish"}), NOW)
-    tracker.update(SOURCES, states(**{PRINTER.state: "unavailable"}), NOW + 60)
-    done_at = tracker.update(SOURCES, states(**{PRINTER.state: "finish"}), NOW + 120)
-    assert done_at == {"p1s_color": NOW}
+def test_move_to_dryer_clears_when_dryer_starts():
+    t = FinishTracker()
+    step(t, NOW, **{WASHER.state: "running", DRYER.state: "power_off"})
+    step(t, NOW, **{WASHER.state: "end", DRYER.state: "power_off"})
+    items = step(t, NOW + 600, **{WASHER.state: "power_off", DRYER.state: "running"})
+    assert [it["id"] for it in items] == ["dryer"]
+
+
+def test_dryer_still_running_last_load_does_not_clear_move_to_dryer():
+    t = FinishTracker()
+    step(t, NOW, **{WASHER.state: "running", DRYER.state: "running"})
+    step(t, NOW, **{WASHER.state: "end", DRYER.state: "running"})
+    assert "washer" in t.finished  # dryer was already busy: the wash still needs moving
+    step(t, NOW + 600, **{WASHER.state: "power_off", DRYER.state: "end"})
+    assert "washer" in t.finished
+    step(t, NOW + 900, **{WASHER.state: "power_off", DRYER.state: "running"})
+    assert "washer" not in t.finished
+
+
+# ---- dryer: done for 30 minutes ----------------------------------------------------
+
+def test_dryer_done_survives_power_off_for_30_minutes():
+    t = FinishTracker()
+    step(t, NOW, **{DRYER.state: "running"})
+    step(t, NOW, **{DRYER.state: "end"})
+    (item,) = step(t, NOW + 30, **{DRYER.state: "power_off"})
+    assert item["status"] == "done"
+    assert step(t, NOW + DONE_LINGER_SECONDS, **{DRYER.state: "power_off"}) == []
 
 
 # ---- order ------------------------------------------------------------------
 
-def test_done_first_then_soonest_finish_then_no_end_time():
+def test_order_attention_then_cooling_then_soonest_finish():
     s = states(**{
-        PRINTER.state: "finish",
+        PRINTER.state: "finish", PRINTER.cooldown: "50",
         MONO.state: "running", MONO.ends: iso(NOW + 3600),
-        WASHER.state: "running", WASHER.ends: iso(NOW + 600),
-        DRYER.state: "running",
+        WASHER.state: "power_off",
+        DRYER.state: "running", DRYER.ends: iso(NOW + 600),
     })
-    items = run(s, {"p1s_color": NOW - 60})
-    assert [it["id"] for it in items] == ["p1s_color", "washer", "p1s_mono", "dryer"]
+    finished = {"p1s_color": Finish("cooling", NOW - 60, start_temp=60), "washer": Finish("waiting", NOW - 600)}
+    assert [it["id"] for it in run(s, finished)] == ["washer", "p1s_color", "dryer", "p1s_mono"]
 
 
 # ---- demos ------------------------------------------------------------------
@@ -151,9 +220,14 @@ def test_demo_item_counts(name):
     assert len(demo_items(name, {}, NOW)) == count
 
 
-def test_demo_done_and_failed_come_first():
-    assert demo_items("done", {}, NOW)[0]["status"] == "done"
-    assert demo_items("failed", {}, NOW)[0]["status"] == "failed"
+@pytest.mark.parametrize("name", ["done", "failed", "waiting"])
+def test_demo_finished_item_comes_first(name):
+    assert demo_items(name, {}, NOW)[0]["status"] == name
+
+
+def test_demo_cooling():
+    item = demo_items("cooling", {}, NOW)[0]
+    assert item["status"] == "cooling" and item["temp"] is not None
 
 
 # ---- cameras ----------------------------------------------------------------

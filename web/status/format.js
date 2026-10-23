@@ -1,10 +1,13 @@
 // Text shown inside a ring, and the extra lines of the detail view.
 
 // Whole minutes, rounded up: "44m", or ["2h", "05m"] as two parts so small
-// rings can stack them. Status words replace the time once an item finishes.
+// rings can stack them. Once an item finishes: its bed temperature while it
+// cools ("41°"), "Move" while the washer waits for the dryer, then a status word.
 export function ringText(item, secondsLeft) {
   if (item.status === "done") return ["Done"];
   if (item.status === "failed") return ["Failed"];
+  if (item.status === "waiting") return ["Move"];
+  if (item.status === "cooling") return [item.temp == null ? "Cool" : `${item.temp}°`];
   if (secondsLeft == null) return ["--"];
   const mins = Math.ceil(Math.max(0, secondsLeft) / 60);
   if (mins < 60) return [`${mins}m`];

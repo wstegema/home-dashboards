@@ -27,8 +27,12 @@ Entity IDs verified against live HA on 2026-10-14 are in the CYD YAML.
 ## Rules
 
 - An item shows while it runs.
-- After it is **seen** finishing, it shows "Done" for 30 minutes. A device that had already finished before the screen started shows nothing.
-- Order: done items first (they need you), then soonest finish.
+- After it is **seen** finishing (a device that had already finished before the server started shows nothing):
+  - **Printers:** "Cooling down" (bed temperature in the ring) until the bed is at or below 25 °C, then "Done" for 30 minutes. If the room is too warm to get there, "Done" after 3 hours anyway. A failed print shows "Failed" for 30 minutes right away.
+  - **Washer:** "Move to dryer" until the dryer *starts* a cycle (not if it was still running the previous load) or the washer starts again. No time limit.
+  - **Dryer:** "Done" for 30 minutes. Showing it until the door opens isn't possible: there's no door sensor, and LG machines switch themselves off ~30 s after finishing.
+- Switching off (power_off) never clears a finished state.
+- Order: things that need you first (done, failed, move to dryer; newest first), then cooling, then running by soonest finish.
 - Nothing running: a clock and the date.
 
 ## Display
