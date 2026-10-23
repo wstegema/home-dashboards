@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from . import config
 from .demo import SCENARIOS, demo_cameras, demo_items
 from .ha import HomeAssistant
-from .sources import CAMERAS, SOURCES
+from .sources import CAMERAS, CLEAR_ALL, SOURCES
 from .status import FinishTracker, build_items, cameras
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -34,7 +34,7 @@ async def track_done() -> None:
     """Watch every change, even with no screen open, so no finish is missed."""
     while True:
         await ha.wait_change()
-        tracker.update(SOURCES, ha.states, time.time())
+        tracker.update(SOURCES, ha.states, time.time(), CLEAR_ALL)
 
 
 @asynccontextmanager
@@ -59,7 +59,7 @@ def status(demo: str | None) -> dict:
             raise HTTPException(404, f"no demo '{demo}'; try one of {list(SCENARIOS)}")
         items, cams = demo_items(demo, ha.states, now), demo_cameras()
     else:
-        items = build_items(SOURCES, ha.states, now, tracker.update(SOURCES, ha.states, now))
+        items = build_items(SOURCES, ha.states, now, tracker.update(SOURCES, ha.states, now, CLEAR_ALL))
         cams = cameras(CAMERAS, ha.states)
     return {"now": now, "tz": ha.time_zone, "connected": ha.connected, "demo": demo, "items": items, "cameras": cams}
 

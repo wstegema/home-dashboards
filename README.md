@@ -38,6 +38,7 @@ copy .env.example .env            # paste a HA token into .env
 | Which devices are watched | `server/sources.py` (`SOURCES`) |
 | Cameras in the detail view's side column | `server/sources.py` (`CAMERAS`) |
 | Running / done rules | `server/status.py` (with tests in `tests/`) |
+| Stream Deck keys (timers, clear buttons) | [docs/stream-deck.md](docs/stream-deck.md) |
 
 The UI is plain HTML, CSS and JS modules, so there's no build step: edit a file and reload the browser.
 

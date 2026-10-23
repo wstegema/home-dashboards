@@ -15,6 +15,7 @@ Glance at a screen and know what is running in the house, and nothing else.
 |---|---|---|---|---|
 | P1S Color, P1S Mono (Bambu) | `print_status` is running, prepare, pause, slicing or init | `finish`; `failed` shows red "Failed" | `end_time` | `print_progress` |
 | Washer, Dryer (LG ThinQ) | `current_status` is anything except power_off, initial or unavailable | `end` (dryer also `wrinkle_care`) | `remaining_time` (it's a finish timestamp, despite the name) | worked out from `total_time` |
+| Dishwasher, Slow cooker (HA timer helpers, started from the Stream Deck) | timer is active or paused | runs out (cancelling shows nothing) | `finishes_at` | worked out from `duration` |
 | Calendar events (later) | starting soon | started | event start | none |
 | Unraid parity check / alerts (later) | running or active | finished or cleared | to be decided | to be decided |
 
@@ -31,7 +32,9 @@ Entity IDs verified against live HA on 2026-10-14 are in the CYD YAML.
   - **Printers:** "Cooling down" (bed temperature in the ring) until the bed is at or below 25 °C, then "Done" for 30 minutes. If the room is too warm to get there, "Done" after 3 hours anyway. A failed print shows "Failed" for 30 minutes right away.
   - **Washer:** "Move to dryer" until the dryer *starts* a cycle (not if it was still running the previous load) or the washer starts again. No time limit.
   - **Dryer:** "Done" for 30 minutes. Showing it until the door opens isn't possible: there's no door sensor, and LG machines switch themselves off ~30 s after finishing.
+  - **Timers:** "Done" for 30 minutes.
 - Switching off (power_off) never clears a finished state.
+- **Clear keys** (Stream Deck): "Clear dryer" removes the dryer's Done; "Clear finished" removes every finished item.
 - Order: things that need you first (done, failed, move to dryer; newest first), then cooling, then running by soonest finish.
 - Nothing running: a clock and the date.
 

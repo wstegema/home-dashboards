@@ -7,25 +7,33 @@ from server.sources import SOURCES
 from server.status import COOL_TIMEOUT_SECONDS, COOLED_C, DONE_LINGER_SECONDS, Finish, FinishTracker, build_items
 
 NOW = 1_800_000_000.0
-PRINTER, MONO, WASHER, DRYER = SOURCES
+PRINTER, MONO, WASHER, DRYER, DISHWASHER, SLOW_COOKER = SOURCES
 
 
 def iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, timezone.utc).isoformat()
 
 
-def states(**values: str) -> dict:
-    return {e: {"entity_id": e, "state": v, "attributes": {}} for e, v in values.items()}
+def states(**values) -> dict:
+    """entity=state, or entity=(state, {attributes})."""
+    out = {}
+    for e, v in values.items():
+        state, attrs = v if isinstance(v, tuple) else (v, {})
+        out[e] = {"entity_id": e, "state": state, "attributes": attrs}
+    return out
 
 
 def run(src_states: dict, finished: dict | None = None, now: float = NOW) -> list[dict]:
     return build_items(SOURCES, src_states, now, finished or {})
 
 
-def step(tracker: FinishTracker, now: float, **values: str) -> list[dict]:
+CLEAR_ALL = "input_button.clear_finished"
+
+
+def step(tracker: FinishTracker, now: float, **values) -> list[dict]:
     """Feed one set of HA states to the tracker and return what the screen shows."""
     s = states(**values)
-    return run(s, tracker.update(SOURCES, s, now), now)
+    return run(s, tracker.update(SOURCES, s, now, CLEAR_ALL), now)
 
 
 # ---- active / done rules ---------------------------------------------------
@@ -197,6 +205,57 @@ def test_dryer_done_survives_power_off_for_30_minutes():
     (item,) = step(t, NOW + 30, **{DRYER.state: "power_off"})
     assert item["status"] == "done"
     assert step(t, NOW + DONE_LINGER_SECONDS, **{DRYER.state: "power_off"}) == []
+
+
+# ---- timers (Stream Deck) ----------------------------------------------------------
+
+def timer(seconds_left: float, duration: str = "2:00:00", state: str = "active"):
+    return (state, {"finishes_at": iso(NOW + seconds_left), "duration": duration})
+
+
+def test_running_timer_counts_down_with_progress():
+    (item,) = step(FinishTracker(), NOW, **{DISHWASHER.state: timer(30 * 60)})
+    assert item["status"] == "running" and item["seconds_left"] == 30 * 60 and item["pct"] == 75
+
+
+def test_timer_running_out_is_done():
+    t = FinishTracker()
+    step(t, NOW, **{DISHWASHER.state: timer(60)})
+    (item,) = step(t, NOW + 61, **{DISHWASHER.state: ("idle", {"duration": "2:00:00"})})
+    assert item["status"] == "done" and item["name"] == "Dishwasher"
+
+
+def test_cancelled_timer_shows_nothing():
+    t = FinishTracker()
+    step(t, NOW, **{SLOW_COOKER.state: timer(3600)})
+    assert step(t, NOW + 60, **{SLOW_COOKER.state: ("idle", {})}) == []
+
+
+# ---- clear buttons (Stream Deck) -------------------------------------------------
+
+def test_clear_dryer_button_clears_only_the_dryer():
+    t = FinishTracker()
+    step(t, NOW, **{DRYER.state: "running", DISHWASHER.state: timer(60), "input_button.clear_dryer": "2026-01-01T00:00:00"})
+    step(t, NOW + 61, **{DRYER.state: "end", DISHWASHER.state: ("idle", {}), "input_button.clear_dryer": "2026-01-01T00:00:00"})
+    items = step(t, NOW + 90, **{DRYER.state: "power_off", DISHWASHER.state: ("idle", {}),
+                                 "input_button.clear_dryer": iso(NOW + 90)})
+    assert [it["id"] for it in items] == ["dishwasher"]
+
+
+def test_clear_finished_button_clears_everything_finished():
+    t = FinishTracker()
+    before = {WASHER.state: "running", DRYER.state: "power_off", PRINTER.state: "running", CLEAR_ALL: "2026-01-01T00:00:00"}
+    step(t, NOW, **before)
+    step(t, NOW + 10, **{**before, WASHER.state: "end", PRINTER.state: "finish"})
+    assert len(t.finished) == 2
+    assert step(t, NOW + 20, **{**before, WASHER.state: "power_off", PRINTER.state: "finish", CLEAR_ALL: iso(NOW + 20)}) == []
+
+
+def test_first_sight_of_a_button_is_not_a_press():
+    t = FinishTracker()
+    step(t, NOW, **{DRYER.state: "running"})
+    step(t, NOW, **{DRYER.state: "end"})
+    assert step(t, NOW + 5, **{DRYER.state: "end", "input_button.clear_dryer": iso(NOW)}) != []
 
 
 # ---- order ------------------------------------------------------------------

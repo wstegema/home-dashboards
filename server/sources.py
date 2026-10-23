@@ -18,7 +18,7 @@ class Source:
     id: str
     name: str
     state: str  # entity whose state says running / done
-    ends: str  # entity holding the finish time as an ISO timestamp
+    ends: str | None  # entity holding the finish time as an ISO timestamp
     done: frozenset[str]
     failed: frozenset[str] = frozenset()  # done states shown as failed (red)
     active: frozenset[str] | None = None  # None: anything not missing, idle or done
@@ -31,6 +31,10 @@ class Source:
     cooldown: str | None = None  # temperature entity: "Cooling down" until it reaches COOLED_C
     wait_for: str | None = None  # source id: hold wait_text until that source starts running
     wait_text: str = ""
+    clear: tuple[str, ...] = ()  # input_button entities: a press clears the finished state
+    # HA timer helpers keep their times in attributes of the state entity:
+    ends_attr: str | None = None  # attribute with the finish time (instead of the `ends` entity)
+    duration_attr: str | None = None  # attribute with the length as "H:MM:SS", for progress
 
     def is_done(self, state: str) -> bool:
         return state in self.done
@@ -73,11 +77,31 @@ def lg_thinq(id: str, name: str, prefix: str, done: set[str], **after) -> Source
     )
 
 
+def ha_timer(id: str, name: str, entity: str, **after) -> Source:
+    """A timer helper, started from the Stream Deck. Running out shows Done;
+    cancelling shows nothing."""
+    return Source(
+        id, name,
+        state=entity,
+        ends=None,
+        ends_attr="finishes_at",
+        duration_attr="duration",
+        done=frozenset({"idle"}),
+        active=frozenset({"active", "paused"}),
+        **after,
+    )
+
+
+# Stream Deck "Clear finished": clears every finished item on the board.
+CLEAR_ALL = "input_button.clear_finished"
+
 SOURCES: list[Source] = [
     bambu("p1s_color", "P1S Color", "office_p1s_color"),
     bambu("p1s_mono", "P1S Mono", "p1s_01p00c5b1101239"),
     lg_thinq("washer", "Washer", "washer", {"end"}, wait_for="dryer", wait_text="Move to dryer"),
-    lg_thinq("dryer", "Dryer", "kitchen_dryer", {"end", "wrinkle_care"}),
+    lg_thinq("dryer", "Dryer", "kitchen_dryer", {"end", "wrinkle_care"}, clear=("input_button.clear_dryer",)),
+    ha_timer("dishwasher", "Dishwasher", "timer.dishwasher"),
+    ha_timer("slow_cooker", "Slow cooker", "timer.slow_cooker"),
 ]
 
 

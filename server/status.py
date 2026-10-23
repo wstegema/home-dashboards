@@ -42,9 +42,12 @@ class FinishTracker:
 
     def __init__(self) -> None:
         self._prev: dict[str, str] = {}
+        self._ends: dict[str, float] = {}  # last known finish time while running
+        self._buttons: dict[str, str] = {}  # last seen state of each clear button
         self.finished: dict[str, Finish] = {}
 
-    def update(self, sources: list[Source], states: dict, now: float) -> dict[str, Finish]:
+    def update(self, sources: list[Source], states: dict, now: float,
+               clear_all: str | None = None) -> dict[str, Finish]:
         for src in sources:
             state = _state(states, src.state)
             if state in MISSING:
@@ -53,8 +56,23 @@ class FinishTracker:
             self._prev[src.id] = state
             if src.is_active(state):
                 self.finished.pop(src.id, None)  # a new cycle
+                if (ends := _ends(src, states)) is not None:
+                    self._ends[src.id] = ends
             elif src.is_done(state) and prev is not None and not src.is_done(prev):
-                self.finished[src.id] = self._start(src, state, states, now)
+                # A timer that stops well before its finish time was cancelled, not done.
+                cancelled = src.ends_attr is not None and self._ends.get(src.id, 0) > now + 5
+                if not cancelled:
+                    self.finished[src.id] = self._start(src, state, states, now)
+                self._ends.pop(src.id, None)
+
+        # Clear buttons (Stream Deck): a press changes the button's state to the press time.
+        for src in sources:
+            for button in src.clear + ((clear_all,) if clear_all else ()):
+                if self._pressed(button, states):
+                    self.finished.pop(src.id, None)
+        self._buttons.update({b: _state(states, b) for src in sources
+                              for b in src.clear + ((clear_all,) if clear_all else ())
+                              if _state(states, b) not in MISSING})
 
         by_id = {src.id: src for src in sources}
         for src_id, f in list(self.finished.items()):
@@ -77,6 +95,11 @@ class FinishTracker:
             elif now - f.since >= DONE_LINGER_SECONDS:
                 del self.finished[src_id]
         return self.finished
+
+    def _pressed(self, button: str, states: dict) -> bool:
+        state = _state(states, button)
+        before = self._buttons.get(button)
+        return state not in MISSING and before is not None and state != before
 
     @staticmethod
     def _start(src: Source, state: str, states: dict, now: float) -> Finish:
@@ -127,10 +150,12 @@ def _base(src: Source, states: dict, status: str) -> dict:
 
 
 def _running_item(src: Source, states: dict, now: float) -> dict:
-    ends_at = _timestamp(states, src.ends)
+    ends_at = _ends(src, states)
     seconds_left = None if ends_at is None else max(0, round(ends_at - now))
     pct = _number(states, src.progress)
     total = _number(states, src.total_minutes)
+    if total is None and src.duration_attr:
+        total = _hms_minutes(_attr(states, src.state, src.duration_attr))
     if pct is None and total and seconds_left is not None:
         pct = 100 * (1 - seconds_left / (total * 60))
     stage = _state(states, src.stage)
@@ -180,6 +205,33 @@ def _image_url(src: Source, states: dict) -> str | None:
         return None
     # The image entity's state changes when the picture does: use it to bust caches.
     return IMAGE_URL.format(entity=src.image, version=states[src.image]["state"])
+
+
+def _ends(src: Source, states: dict) -> float | None:
+    if src.ends_attr:
+        return _parse_time(_attr(states, src.state, src.ends_attr))
+    return _timestamp(states, src.ends)
+
+
+def _attr(states: dict, entity: str, name: str):
+    st = states.get(entity)
+    return (st.get("attributes") or {}).get(name) if st else None
+
+
+def _hms_minutes(value) -> float | None:
+    """'2:00:00' -> 120.0"""
+    try:
+        h, m, s = (int(part) for part in str(value).split(":"))
+    except ValueError:
+        return None
+    return h * 60 + m + s / 60
+
+
+def _parse_time(value) -> float | None:
+    try:
+        return datetime.fromisoformat(str(value)).timestamp()
+    except ValueError:
+        return None
 
 
 def _state(states: dict, entity: str | None) -> str:
