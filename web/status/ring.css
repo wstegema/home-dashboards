@@ -1,7 +1,7 @@
 /* One item: a ring filled by progress, time left inside, name next to it.
    Sizes are relative to the tile (cq units), so the same tile works from a
    106x120 cell on the CYD to half a 4K screen.
-   Priority when space runs out: time > ring > name > detail > cover. */
+   Priority when space runs out: time > ring > name > detail. */
 
 .tile {
   --c: var(--slot-1);          /* set per tile by ring.js */
@@ -67,7 +67,27 @@
 }
 .name { font-size: var(--name-size); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail { font-size: calc(var(--name-size) * 0.6); color: var(--fg-dim); display: none; }
-.cover { width: min(40cqh, 100%); aspect-ratio: 1; object-fit: contain; margin-top: 0.4em; }
+/* Print thumbnail inside the ring (the ring is its progress border). The time
+   moves to a dark label at the bottom so it stays readable over the picture. */
+.ring .thumb {
+  position: absolute;
+  inset: 13%;
+  width: 74%;
+  height: 74%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #111;
+}
+.ring.has-thumb .time { inset: auto 0 9% 0; font-size: 15cqw; }
+.ring.has-thumb .time[data-len="long"] { font-size: 12cqw; }
+.ring.has-thumb .time span { background: rgba(0, 0, 0, 0.78); padding: 0.06em 0.22em; border-radius: 0.25em; }
+@container ring (max-width: 160px) {
+  /* Small rings: one line ("2h 05m") in a single label instead of stacking over the picture. */
+  .ring.has-thumb .time, .ring.has-thumb .time[data-len="long"] { flex-direction: row; column-gap: 0; font-size: 18cqw; }
+  .ring.has-thumb .time span + span { padding-left: 0; }
+  .ring.has-thumb .time span:first-child:not(:only-child) { padding-right: 0.12em; border-radius: 0.25em 0 0 0.25em; }
+  .ring.has-thumb .time span + span { border-radius: 0 0.25em 0.25em 0; }
+}
 
 /* Drop the extras first when space runs out. Detail only shows in row
    tiles (layouts.css), where it doesn't steal height from the ring. */

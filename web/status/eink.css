@@ -26,3 +26,8 @@ body[data-view="eink"] .tile[data-status="failed"] .time { color: #fff; }
 body[data-view="eink"] .name { font-weight: var(--weight-clock); }
 
 body[data-view="eink"] #offline { color: #fff; }
+
+/* No photos on the transparent panel: the ring and time read better alone. */
+body[data-view="eink"] .ring .thumb { display: none; }
+body[data-view="eink"] .ring.has-thumb .time { inset: 0; font-size: 27cqw; }
+body[data-view="eink"] .ring.has-thumb .time span { background: none; padding: 0; }

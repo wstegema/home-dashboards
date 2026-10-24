@@ -34,7 +34,7 @@ function render() {
   screen.innerHTML = layout === "idle"
     ? clockHtml()
     : items.map((item, slot) => tileHtml(item, slot, {
-        withCover: layout === "one", detail, withCamera: layout === "one" || layout === "two", tz: data.tz,
+        detail, withCamera: layout === "one" || layout === "two", tz: data.tz,
       })).join("");
   // Detail view keeps a small clock on top while things run.
   header.hidden = !detail || layout === "idle";

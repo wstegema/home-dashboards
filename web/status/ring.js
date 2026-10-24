@@ -1,16 +1,19 @@
-// One item tile: ring + time + name (+ detail and cover image when there's room).
+// One item tile: ring + time + name (+ detail when there's room). Prints show their
+// thumbnail inside the ring.
 // The detail view adds percent, finish time, "finished … ago", and a media
-// column with the live camera and the print thumbnail.
+// column with the printer's live camera.
 import { ago, clockTime, escapeHtml, ringText } from "./format.js";
 
 const SLOTS = 6;
 
-export function tileHtml(item, slot, { withCover = false, detail = false, withCamera = false, tz = null } = {}) {
+export function tileHtml(item, slot, { detail = false, withCamera = false, tz = null } = {}) {
   const color = item.status === "failed" ? "var(--failed)" : `var(--slot-${(slot % SLOTS) + 1})`;
   const pct = item.pct ?? 0;
-  const cover = withCover && !detail && item.image ? `<img class="cover" src="${escapeHtml(item.image)}" alt="">` : "";
+  // Prints: the thumbnail sits inside the ring, which becomes its progress border.
+  const thumb = item.image ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="">` : "";
   return `<section class="tile" data-status="${item.status}" style="--c:${color}"><div class="tile-body">
-    <div class="ring">
+    <div class="ring${thumb ? " has-thumb" : ""}">
+      ${thumb}
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle class="track" cx="50" cy="50" r="45"/>
         ${pct > 0 ? `<circle class="bar" cx="50" cy="50" r="45" pathLength="100" stroke-dasharray="${pct} 100"/>` : ""}
@@ -21,20 +24,15 @@ export function tileHtml(item, slot, { withCover = false, detail = false, withCa
       <div class="name">${escapeHtml(item.name)}</div>
       <div class="detail">${escapeHtml(item.detail)}</div>
       ${detail ? factsHtml(item, slot, tz) : ""}
-      ${cover}
     </div>
     ${detail ? mediaHtml(item, withCamera) : ""}
   </div></section>`;
 }
 
-// Detail view only: live camera, with the print thumbnail in its corner
-// (or the thumbnail alone: once it's done, or in grid cards that are too small).
+// Detail view only: the printer's live camera beside the facts.
 function mediaHtml(item, withCamera) {
-  const camera = withCamera ? item.camera : null;
-  if (!camera && !item.image) return "";
-  const thumb = item.image ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="">` : "";
-  const live = camera ? `<img class="live" data-live src="${escapeHtml(camera)}" alt="">` : "";
-  return `<div class="media${live ? "" : " thumb-only"}">${live}${thumb}</div>`;
+  if (!withCamera || !item.camera) return "";
+  return `<div class="media"><img class="live" data-live src="${escapeHtml(item.camera)}" alt=""></div>`;
 }
 
 // Detail view only: the facts under the name.
