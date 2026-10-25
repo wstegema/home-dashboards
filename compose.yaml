@@ -11,7 +11,7 @@ services:
       - HA_TOKEN=${HA_TOKEN}
     labels:
       net.unraid.docker.icon: https://raw.githubusercontent.com/wstegema/home-dashboards/main/web/shared/icon.png
-      net.unraid.docker.webui: http://[IP]:[PORT:8095]/status/
+      net.unraid.docker.webui: http://dashboards.home.arpa/status/
 
   # Builds and flashes the CYD over Wi-Fi. Host network: it finds devices by
   # mDNS and flashes them directly. Web UI on port 6052.
