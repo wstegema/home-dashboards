@@ -9,8 +9,8 @@ const SLOTS = 6;
 export function tileHtml(item, slot, { detail = false, withCamera = false, tz = null } = {}) {
   const color = item.status === "failed" ? "var(--failed)" : `var(--slot-${(slot % SLOTS) + 1})`;
   const pct = item.pct ?? 0;
-  // Prints: the thumbnail sits inside the ring, which becomes its progress border.
-  const thumb = item.image ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="">` : "";
+  // Running prints: the thumbnail sits inside the ring, which becomes its progress border.
+  const thumb = item.image && item.status === "running" ? `<img class="thumb" src="${escapeHtml(item.image)}" alt="">` : "";
   return `<section class="tile" data-status="${item.status}" style="--c:${color}"><div class="tile-body">
     <div class="ring${thumb ? " has-thumb" : ""}">
       ${thumb}
