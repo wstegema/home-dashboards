@@ -45,8 +45,10 @@ The UI is plain HTML, CSS and JS modules, so there's no build step: edit a file 
 ## Deploy (Dockhand on Unraid)
 
 1. Push to `main` on GitHub. The Action runs the tests and publishes `ghcr.io/<owner>/home-dashboards:latest`.
-2. In Dockhand, create a stack from `compose.yaml` and set `HA_URL` and `HA_TOKEN` in its environment.
+2. In Dockhand, create a stack from `compose.yaml` and set `HA_URL`, `HA_TOKEN`, `ESPHOME_USERNAME` and `ESPHOME_PASSWORD` in its environment.
 3. Open `http://<unraid>:8095/status/`.
+
+The stack also runs **ESPHome** (web UI on port 6052), which builds and flashes the CYD over Wi-Fi. Put `cyd-home-status.yaml` and its `secrets.yaml` (Wi-Fi name and password) in `/mnt/user/appdata/esphome`. The first build downloads the ESP32 toolchain (~2.5 GB); builds use all cores for a few minutes.
 
 The image is public, so Dockhand needs no registry login. To update, pull and redeploy the stack in Dockhand.
 

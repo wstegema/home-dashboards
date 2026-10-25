@@ -1,3 +1,4 @@
+# Dockhand stack. Environment: HA_URL, HA_TOKEN, ESPHOME_USERNAME, ESPHOME_PASSWORD.
 services:
   home-dashboards:
     image: ghcr.io/wstegema/home-dashboards:latest
@@ -11,3 +12,20 @@ services:
     labels:
       net.unraid.docker.icon: https://raw.githubusercontent.com/wstegema/home-dashboards/main/web/shared/icon.png
       net.unraid.docker.webui: http://[IP]:[PORT:8095]/status/
+
+  # Builds and flashes the CYD over Wi-Fi. Host network: it finds devices by
+  # mDNS and flashes them directly. Web UI on port 6052.
+  esphome:
+    image: ghcr.io/esphome/esphome:2026.10.0
+    container_name: esphome
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /mnt/user/appdata/esphome:/config
+    environment:
+      - TZ=America/Chicago
+      - USERNAME=${ESPHOME_USERNAME}
+      - PASSWORD=${ESPHOME_PASSWORD}
+    labels:
+      net.unraid.docker.icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/esphome.png
+      net.unraid.docker.webui: http://[IP]:6052
