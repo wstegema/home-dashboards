@@ -18,6 +18,7 @@ from . import config
 from .demo import SCENARIOS, demo_cameras, demo_items
 from .ha import HomeAssistant
 from .sources import CAMERAS, CLEAR_ALL, SOURCES
+from .thumbs import FORMATS, MAX_SIZE, sniff_type, thumbnail
 from .status import FinishTracker, build_items, cameras
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -100,15 +101,25 @@ def api_demos() -> list[str]:
 
 
 @app.get("/api/image/{entity_id}")
-async def api_image(entity_id: str):
+async def api_image(entity_id: str, size: int | None = None, format: str = "png"):
+    """The picture of an image.*/camera.* entity. With ?size=N it is fitted into an
+    N x N square; &format=bmp sends it uncompressed (for the CYD)."""
     if not entity_id.startswith(("image.", "camera.")):
         raise HTTPException(400, "only image.* and camera.* entities")
+    if size is not None and not 8 <= size <= MAX_SIZE:
+        raise HTTPException(400, f"size must be 8-{MAX_SIZE}")
+    if format not in FORMATS:
+        raise HTTPException(400, f"format must be one of {list(FORMATS)}")
     try:
         content, content_type = await ha.fetch_picture(entity_id)
     except LookupError as e:
         raise HTTPException(404, str(e)) from e
     except Exception as e:
         raise HTTPException(502, f"fetch failed: {e}") from e
+    if size is not None:
+        content, content_type = thumbnail(content, size, format)
+    else:
+        content_type = sniff_type(content, content_type)
     return Response(content, media_type=content_type, headers={"Cache-Control": "max-age=300"})
 
 
