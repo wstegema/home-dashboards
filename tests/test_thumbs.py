@@ -2,7 +2,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from server.thumbs import PLATE, sniff_type, thumbnail
+from server.thumbs import PLATE, PLATE_LIGHT, sniff_type, thumbnail
 
 
 def png(w: int, h: int, color=(255, 128, 0, 255)) -> bytes:
@@ -32,11 +32,19 @@ def test_transparent_areas_show_the_plate():
         assert img.getpixel((16, 16)) == PLATE
 
 
-def test_dark_models_are_brightened():
+def test_dark_models_stay_dark_on_a_light_plate():
     data, _ = thumbnail(png(100, 100, (30, 30, 30, 255)), 64, "png")
     with Image.open(BytesIO(data)) as img:
+        assert img.getpixel((32, 32)) == (30, 30, 30)  # black filament still reads black
+        assert img.getpixel((32, 2)) == PLATE_LIGHT
+
+
+def test_white_models_are_restored_to_white():
+    data, _ = thumbnail(png(100, 100, (160, 160, 160, 255)), 64, "png")
+    with Image.open(BytesIO(data)) as img:
         r, g, b = img.getpixel((32, 32))
-        assert 80 <= r == g == b  # lifted (3x at most) so it reads on black
+        assert r == g == b >= 240  # shading averaged to grey goes back to white
+        assert img.getpixel((32, 2)) == PLATE
 
 
 def test_bright_models_keep_their_colors():
