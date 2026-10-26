@@ -7,6 +7,9 @@ previews/cyd-<scenario>.png for each demo scenario.
     python tools/cyd_preview.py              # every demo scenario
     python tools/cyd_preview.py 2 done live  # some scenarios; "live" = real status
 
+CYD_STATUS_URL=http://localhost:8091 points it at a dev server instead of the
+one in the config (to preview server changes before deploying them).
+
 Needs: esphome (same version as the stack), libsdl2-dev, xvfb, imagemagick.
 """
 
@@ -68,7 +71,10 @@ def host_yaml(scenario):
             text = re.sub(r'initial_option: ".*?"', f'initial_option: "{scenario}"', text)
             text = text.replace("restore_value: true", "restore_value: false")
         parts.append(text)
-    return "host:\n\n" + "".join(parts)
+    text = "host:\n\n" + "".join(parts)
+    if os.environ.get("CYD_STATUS_URL"):
+        text = re.sub(r"(?m)^  status_url: .*$", f"  status_url: {os.environ['CYD_STATUS_URL']}", text)
+    return text
 
 
 def run(cmd, **kw):
