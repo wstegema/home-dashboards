@@ -10,7 +10,9 @@ previews/cyd-<scenario>.png for each demo scenario.
 CYD_STATUS_URL=http://localhost:8091 points it at a dev server instead of the
 one in the config (to preview server changes before deploying them).
 
-Needs: esphome (same version as the stack), libsdl2-dev, xvfb, imagemagick.
+Needs: libsdl2-dev, xvfb, imagemagick, and esphome on PATH (same version as the
+stack). Install esphome in its own venv: it pins a Pillow the server can't use.
+    python -m venv ~/esphome-venv && ~/esphome-venv/bin/pip install esphome==2026.10.0
 """
 
 import os
