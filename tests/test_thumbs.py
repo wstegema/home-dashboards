@@ -2,7 +2,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from server.thumbs import PLATE, PLATE_LIGHT, sniff_type, thumbnail
+from server.thumbs import OUTLINE, sniff_type, thumbnail
 
 
 def png(w: int, h: int, color=(255, 128, 0, 255)) -> bytes:
@@ -18,25 +18,34 @@ def test_bmp_is_exact_square_size():
         assert img.size == (64, 64) and img.mode == "RGB"
 
 
-def test_picture_sits_on_a_round_plate():
+def test_picture_is_centered_on_black():
     data, _ = thumbnail(png(200, 100), 64, "png")
     with Image.open(BytesIO(data)) as img:
         assert img.getpixel((32, 32)) == (255, 128, 0)  # picture in the middle
-        assert img.getpixel((32, 4)) == PLATE  # plate above it, inside the circle
-        assert img.getpixel((1, 1)) == (0, 0, 0)  # corners outside the plate are black
+        assert img.getpixel((32, 4)) == (0, 0, 0)  # black around it
+        assert img.getpixel((1, 1)) == (0, 0, 0)
 
 
-def test_transparent_areas_show_the_plate():
+def test_transparent_areas_become_black():
     data, _ = thumbnail(png(64, 64, (255, 255, 255, 0)), 32, "png")
     with Image.open(BytesIO(data)) as img:
-        assert img.getpixel((16, 16)) == PLATE
+        assert img.getpixel((16, 16)) == (0, 0, 0)
 
 
-def test_dark_models_stay_dark_on_a_light_plate():
+def test_dark_models_stay_dark_with_a_light_outline():
     data, _ = thumbnail(png(100, 100, (30, 30, 30, 255)), 64, "png")
     with Image.open(BytesIO(data)) as img:
         assert img.getpixel((32, 32)) == (30, 30, 30)  # black filament still reads black
-        assert img.getpixel((32, 2)) == PLATE_LIGHT
+        edge = next(x for x in range(32) if img.getpixel((x, 32)) != (0, 0, 0))
+        assert img.getpixel((edge, 32)) == OUTLINE  # shape traced in light grey
+        assert img.getpixel((1, 1)) == (0, 0, 0)
+
+
+def test_light_models_get_no_outline():
+    data, _ = thumbnail(png(100, 100, (255, 128, 0, 255)), 64, "png")
+    with Image.open(BytesIO(data)) as img:
+        edge = next(x for x in range(32) if img.getpixel((x, 32)) != (0, 0, 0))
+        assert img.getpixel((edge, 32)) != OUTLINE
 
 
 def test_white_models_are_restored_to_white():
@@ -44,7 +53,7 @@ def test_white_models_are_restored_to_white():
     with Image.open(BytesIO(data)) as img:
         r, g, b = img.getpixel((32, 32))
         assert r == g == b >= 240  # shading averaged to grey goes back to white
-        assert img.getpixel((32, 2)) == PLATE
+        assert img.getpixel((32, 2)) == (0, 0, 0)
 
 
 def test_bright_models_keep_their_colors():
