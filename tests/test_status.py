@@ -99,6 +99,17 @@ def test_cover_image_url_changes_with_picture():
     assert item["image"] == f"/api/image/{PRINTER.image}?v=2026-10-16T10:00:00"
 
 
+def test_unavailable_cover_image_is_no_image():
+    (item,) = run(states(**{PRINTER.state: "running", PRINTER.image: "unavailable"}))
+    assert item["image"] is None
+
+
+def test_demo_uses_stand_in_print_when_cover_is_unavailable():
+    real = {src.image: {"state": "unavailable", "attributes": {}} for src in SOURCES if src.image}
+    items = demo_items("1", real, NOW)
+    assert items[0]["image"].startswith("/api/image/demo.print")
+
+
 # ---- finishing: general ------------------------------------------------------
 
 def test_finished_before_startup_shows_nothing():

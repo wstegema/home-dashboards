@@ -51,7 +51,7 @@ COOLING_FROM, COOLING_NOW = 60, 41  # demo bed temperatures, °C
 
 # Placeholder pictures (web/shared/demo/) so the media layout can be checked without HA.
 DEMO_CAMERA = "/shared/demo/camera.svg"
-DEMO_PRINT = "/shared/demo/print.svg"
+DEMO_PRINT = "/api/image/demo.print?v=1"  # web/shared/demo/print.png, resizable like a real cover
 
 
 def demo_cameras() -> list[dict]:

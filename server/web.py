@@ -10,6 +10,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -100,22 +101,35 @@ def api_demos() -> list[str]:
     return list(SCENARIOS)
 
 
+DEMO_PICTURE = "demo.print"  # the demo's stand-in print cover
+
+
+def _fetch_error(e: Exception) -> str:
+    """Why a picture fetch failed, without the HA URL (it carries an access token)."""
+    if isinstance(e, httpx.HTTPStatusError):
+        return f"Home Assistant returned {e.response.status_code}"
+    return f"fetch failed: {type(e).__name__}"
+
+
 @app.get("/api/image/{entity_id}")
 async def api_image(entity_id: str, size: int | None = None, format: str = "png"):
     """The picture of an image.*/camera.* entity. With ?size=N it is fitted into an
     N x N square; &format=bmp sends it uncompressed (for the CYD)."""
-    if not entity_id.startswith(("image.", "camera.")):
+    if entity_id != DEMO_PICTURE and not entity_id.startswith(("image.", "camera.")):
         raise HTTPException(400, "only image.* and camera.* entities")
     if size is not None and not 8 <= size <= MAX_SIZE:
         raise HTTPException(400, f"size must be 8-{MAX_SIZE}")
     if format not in FORMATS:
         raise HTTPException(400, f"format must be one of {list(FORMATS)}")
     try:
-        content, content_type = await ha.fetch_picture(entity_id)
+        if entity_id == DEMO_PICTURE:
+            content, content_type = (config.WEB_DIR / "shared/demo/print.png").read_bytes(), "image/png"
+        else:
+            content, content_type = await ha.fetch_picture(entity_id)
     except LookupError as e:
         raise HTTPException(404, str(e)) from e
     except Exception as e:
-        raise HTTPException(502, f"fetch failed: {e}") from e
+        raise HTTPException(502, _fetch_error(e)) from e
     if size is not None:
         content, content_type = thumbnail(content, size, format)
     else:
@@ -132,7 +146,7 @@ async def api_camera(entity_id: str):
     except LookupError as e:
         raise HTTPException(404, str(e)) from e
     except Exception as e:
-        raise HTTPException(502, f"fetch failed: {e}") from e
+        raise HTTPException(502, _fetch_error(e)) from e
     return Response(content, media_type=content_type, headers={"Cache-Control": "no-store"})
 
 

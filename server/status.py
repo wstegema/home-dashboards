@@ -201,8 +201,8 @@ def _camera_url(entity: str | None, states: dict) -> str | None:
 
 
 def _image_url(src: Source, states: dict) -> str | None:
-    if not src.image or src.image not in states:
-        return None
+    if not src.image or states.get(src.image, {}).get("state") in (None, "unavailable", "unknown"):
+        return None  # no print, or HA has no picture to give (e.g. after the print ends)
     # The image entity's state changes when the picture does: use it to bust caches.
     return IMAGE_URL.format(entity=src.image, version=states[src.image]["state"])
 
