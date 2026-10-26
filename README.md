@@ -50,6 +50,8 @@ The UI is plain HTML, CSS and JS modules, so there's no build step: edit a file 
 
 The stack also runs **ESPHome** (web UI on port 6052), which builds and flashes the CYD over Wi-Fi. Put `cyd-home-status.yaml` and its `secrets.yaml` (Wi-Fi name and password) in `/mnt/user/appdata/esphome`. The first build downloads the ESP32 toolchain (~2.5 GB); builds use all cores for a few minutes.
 
+To see the CYD screen without the CYD: `python tools/cyd_preview.py` builds the same config for Linux (ESPHome `host` + SDL on a virtual screen) and saves `previews/cyd-<scenario>.png` for every demo scenario, or `live`. Needs `libsdl2-dev`, `xvfb` and `imagemagick`; about 20 s per scenario after the first build.
+
 The image is public, so Dockhand needs no registry login. To update, pull and redeploy the stack in Dockhand.
 
 To edit the UI on the server without a new image, copy `web/` to the server and add a volume to the stack:
