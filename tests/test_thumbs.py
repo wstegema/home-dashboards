@@ -48,12 +48,11 @@ def test_light_models_get_no_outline():
         assert img.getpixel((edge, 32)) != OUTLINE
 
 
-def test_white_models_are_restored_to_white():
-    data, _ = thumbnail(png(100, 100, (160, 160, 160, 255)), 64, "png")
-    with Image.open(BytesIO(data)) as img:
-        r, g, b = img.getpixel((32, 32))
-        assert r == g == b >= 240  # shading averaged to grey goes back to white
-        assert img.getpixel((32, 2)) == (0, 0, 0)
+def test_grey_and_white_models_keep_their_brightness():
+    for shade in (150, 240):  # grey filament stays grey, white stays white
+        data, _ = thumbnail(png(100, 100, (shade, shade, shade, 255)), 64, "png")
+        with Image.open(BytesIO(data)) as img:
+            assert img.getpixel((32, 32)) == (shade, shade, shade)
 
 
 def test_bright_models_keep_their_colors():
