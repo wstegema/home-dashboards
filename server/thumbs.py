@@ -52,7 +52,7 @@ def thumbnail(data: bytes, size: int, fmt: str) -> tuple[bytes, str]:
     square = Image.new("RGB", (size, size), (0, 0, 0))
     at = ((size - img.width) // 2, (size - img.height) // 2)
     if outline:
-        width = max(2, round(size / 45))  # 2 px in the small rings, 3 px in the big one
+        width = max(1, round(size / 75))  # 1 px in the small rings, 2 px in the big one
         edge = Image.new("L", (size, size), 0)
         edge.paste(img.getchannel("A"), at)
         square.paste(OUTLINE, (0, 0), edge.filter(ImageFilter.MaxFilter(2 * width + 1)))
