@@ -155,6 +155,16 @@ def test_done_lasts_30_minutes_from_when_it_cooled():
     assert step(t, NOW + 1000 + DONE_LINGER_SECONDS, **{PRINTER.state: "finish"}) == []
 
 
+def test_print_picture_stays_through_cooling_and_done():
+    t = FinishTracker()
+    url = f"/api/image/{PRINTER.image}?v=pic1"
+    step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "55", PRINTER.image: "pic1"})
+    (item,) = step(t, NOW + 10, **{PRINTER.state: "finish", PRINTER.cooldown: "55", PRINTER.image: "unavailable"})
+    assert item["status"] == "cooling" and item["image"] == url  # HA dropped it; we kept it
+    (item,) = step(t, NOW + 600, **{PRINTER.state: "finish", PRINTER.cooldown: "24", PRINTER.image: "unavailable"})
+    assert item["status"] == "done" and item["image"] == url
+
+
 def test_cooling_gives_up_in_a_warm_room():
     t = FinishTracker()
     step(t, NOW, **{PRINTER.state: "running", PRINTER.cooldown: "55"})

@@ -24,6 +24,7 @@ class Finish:
     since: float  # when this phase started
     start_temp: float | None = None  # cooling only: temperature when cooling began
     other_stopped: bool = False  # waiting only: the other source has been seen not running
+    image: str | None = None  # the print picture from while it ran (HA drops it at the end)
 
 
 class FinishTracker:
@@ -43,6 +44,7 @@ class FinishTracker:
     def __init__(self) -> None:
         self._prev: dict[str, str] = {}
         self._ends: dict[str, float] = {}  # last known finish time while running
+        self._images: dict[str, str] = {}  # last print picture URL while running
         self._buttons: dict[str, str] = {}  # last seen state of each clear button
         self.finished: dict[str, Finish] = {}
 
@@ -58,12 +60,16 @@ class FinishTracker:
                 self.finished.pop(src.id, None)  # a new cycle
                 if (ends := _ends(src, states)) is not None:
                     self._ends[src.id] = ends
+                if (image := _image_url(src, states)) is not None:
+                    self._images[src.id] = image
             elif src.is_done(state) and prev is not None and not src.is_done(prev):
                 # A timer that stops well before its finish time was cancelled, not done.
                 cancelled = src.ends_attr is not None and self._ends.get(src.id, 0) > now + 5
                 if not cancelled:
                     self.finished[src.id] = self._start(src, state, states, now)
+                    self.finished[src.id].image = self._images.get(src.id)
                 self._ends.pop(src.id, None)
+                self._images.pop(src.id, None)
 
         # Clear buttons (Stream Deck): a press changes the button's state to the press time.
         for src in sources:
@@ -80,7 +86,7 @@ class FinishTracker:
             if f.phase == "cooling":
                 temp = _number(states, src.cooldown)
                 if (temp is not None and temp <= COOLED_C) or now - f.since >= COOL_TIMEOUT_SECONDS:
-                    self.finished[src_id] = Finish("done", now)
+                    self.finished[src_id] = Finish("done", now, image=f.image)
             elif f.phase == "waiting":
                 # Cleared when the other source *starts* a cycle, not if it was
                 # already running the previous load when this one finished.
@@ -177,6 +183,7 @@ def _cooling_item(src: Source, states: dict, f: Finish) -> dict:
         pct = max(0, min(100, round(100 * (f.start_temp - temp) / (f.start_temp - COOLED_C))))
     return {
         **_base(src, states, "cooling"),
+        "image": _image_url(src, states) or f.image,
         "done_at": f.since,
         "pct": pct,
         "temp": None if temp is None else round(temp),
@@ -186,7 +193,8 @@ def _cooling_item(src: Source, states: dict, f: Finish) -> dict:
 
 def _finished_item(src: Source, states: dict, f: Finish) -> dict:
     detail = {"failed": "Failed", "waiting": src.wait_text or "Done"}.get(f.phase, "Done")
-    return {**_base(src, states, f.phase), "done_at": f.since, "pct": 100, "detail": detail}
+    return {**_base(src, states, f.phase), "image": _image_url(src, states) or f.image,
+            "done_at": f.since, "pct": 100, "detail": detail}
 
 
 def cameras(cams: list, states: dict) -> list[dict]:

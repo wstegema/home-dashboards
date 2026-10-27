@@ -102,6 +102,7 @@ def api_demos() -> list[str]:
 
 
 DEMO_PICTURE = "demo.print"  # the demo's stand-in print cover
+last_pictures: dict[str, tuple[bytes, str]] = {}  # entity -> last picture HA gave us
 
 
 def _fetch_error(e: Exception) -> str:
@@ -126,10 +127,16 @@ async def api_image(entity_id: str, size: int | None = None, format: str = "png"
             content, content_type = (config.WEB_DIR / "shared/demo/print.png").read_bytes(), "image/png"
         else:
             content, content_type = await ha.fetch_picture(entity_id)
-    except LookupError as e:
-        raise HTTPException(404, str(e)) from e
+            last_pictures[entity_id] = (content, content_type)
     except Exception as e:
-        raise HTTPException(502, _fetch_error(e)) from e
+        # HA drops a print's cover when the print ends; the status still shows
+        # it while cooling/done, so fall back to the last picture we got.
+        if entity_id in last_pictures:
+            content, content_type = last_pictures[entity_id]
+        elif isinstance(e, LookupError):
+            raise HTTPException(404, str(e)) from e
+        else:
+            raise HTTPException(502, _fetch_error(e)) from e
     if size is not None:
         content, content_type = thumbnail(content, size, format)
     else:
